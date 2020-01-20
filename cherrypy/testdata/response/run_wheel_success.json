@@ -1,0 +1,15 @@
+{
+    "return": [{
+            "tag": "salt/wheel/20200120042402864609",
+            "data": {
+                "jid": "20200120042402864609",
+                "return": ["minion1"],
+                "success": true,
+                "_stamp": "2020-01-20T04:24:02.892394",
+                "tag": "salt/wheel/20200120042402864609",
+                "user": "test",
+                "fun": "wheel.minions.connected"
+            }
+        }
+    ]
+}

@@ -26,11 +26,12 @@ type Client struct {
 }
 
 // NewClient creates a new instance of client
-func NewClient(address string, username string, password string, eauth string) (*Client, error) {
-	a := EAuth{}
-	a.Username = username
-	a.Password = password
-	a.Backend = eauth
+func NewClient(address string, username string, password string, eauth string) *Client {
+	a := EAuth{
+		Username: username,
+		Password: password,
+		Backend:  eauth,
+	}
 
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{
@@ -38,20 +39,14 @@ func NewClient(address string, username string, password string, eauth string) (
 		},
 	}
 
-	c := Client{
+	return &Client{
 		Client:  &http.Client{Transport: tr},
 		Address: address,
 		EAuth:   &a,
 	}
-
-	if err := c.Authenticate(); err != nil {
-		return nil, err
-	}
-
-	return &c, nil
 }
 
-func (c *Client) sendRequest(method string, endpoint string, data interface{}) (map[string]interface{}, error) {
+func (c *Client) request(method string, endpoint string, data interface{}) ([]byte, error) {
 	url := fmt.Sprintf("%s/%s", c.Address, endpoint)
 	jsonData, err := json.Marshal(data)
 	if err != nil {
@@ -80,20 +75,24 @@ func (c *Client) sendRequest(method string, endpoint string, data interface{}) (
 		return nil, err
 	}
 
-	log.Printf("[DEBUG] Received response %s from %s", body, url)
-
-	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("[WARN] HTTP Request failed: %s.\n%s", resp.Status, body)
+	log.Printf("[DEBUG] Received response (%d) %s from %s", resp.StatusCode, body, url)
+	if resp.StatusCode > 299 || resp.StatusCode < 200 {
+		return nil, fmt.Errorf("HTTP Request failed: %s.\n%s", resp.Status, body)
 	}
 
-	if resp.Header.Get("Content-Type") == "application/json" {
-		result := make(map[string]interface{})
-		if err := json.Unmarshal(body, &result); err != nil {
-			return nil, err
-		}
+	return body, nil
+}
 
-		return result, nil
+func (c *Client) requestJSON(method string, endpoint string, data interface{}) (map[string]interface{}, error) {
+	body, err := c.request(method, endpoint, data)
+	if err != nil {
+		return nil, err
 	}
 
-	return nil, nil
+	result := make(map[string]interface{})
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }

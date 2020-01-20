@@ -1,0 +1,11 @@
+{
+    "info": [{
+            "jid": "SampleMissingJobId",
+            "Result": {},
+            "StartTime": "",
+            "Error": "Cannot contact returner or no job with this jid"
+        }
+    ],
+    "return": [{}
+    ]
+}

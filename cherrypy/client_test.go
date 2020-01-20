@@ -1,53 +1,70 @@
 package cherrypy
 
-import "testing"
+import (	
+	"fmt"
+	"io/ioutil"
+	"log"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"testing"
+)
 
-func TestSomethingElse(t *testing.T) {
-	client, err := NewClient("https://192.168.50.10:8000", "test", "test", "pam")
-	if err != nil {
-		t.Fatal(err)
-	}
+const (
+	testUsername = "sample_user"
+	testPassword = "sample_password"
+	testEAuth = "file"
+	testToken = "75023210fea33137fd41d24d75998b93eba9b103"
+)
 
-	result, err := client.GetKeys()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	print(result)
+func TestMain(m *testing.M) {
+	log.SetOutput(ioutil.Discard)
+	os.Exit(m.Run())
 }
 
-// func TestSomethingElse(t *testing.T) {
-// 	client, err := NewClient("https://192.168.50.10:8000", "test", "test", "pam")
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
+func setup(t *testing.T) (*Client, *http.ServeMux, func()) {
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	client := NewClient(server.URL, testUsername, testPassword, testEAuth)
 
-// 	result, err := client.GetMinions()
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
+	return client, mux, server.Close
+}
 
-// 	print(result)
-// }
+func handleJSONRequest(mux *http.ServeMux, path string, scenario string) {
+	handleRequestWithHeaders(mux, path, scenario, map[string]string{
+		"Content-Type": "application/json",
+		"X-Auth-Token": testToken,
+	})
+}
 
-// func TestSomething(t *testing.T) {
-// 	client, err := NewCherryPyClient("https://192.168.50.10:8000", "test", "test", "pam")
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
+func handleRequest(mux *http.ServeMux, path string, scenario string) {
+	handleRequestWithHeaders(mux, path, scenario, map[string]string{})
+}
 
-// 	cmd := CherryPyCommand{}
-// 	cmd.Client = "local"
-// 	cmd.Target = "minion1"
-// 	cmd.Function = "state.highstate"
+func handleRequestWithHeaders(mux *http.ServeMux, path string, scenario string, headers map[string]string) {
+	mux.HandleFunc(path, func(w http.ResponseWriter, req *http.Request) {
+		content, err := getResponseText(scenario)
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+		} else {
+			for k, v := range headers {
+				w.Header().Set(k, v)
+			}
+			
+			fmt.Fprintf(w, content)
+		}	
+	})
+}
 
-// 	cmds := make([]CherryPyCommand, 1)
-// 	cmds[0] = cmd
+func getResponseText(name string) (string, error) {
+	data, err := getResponse(fmt.Sprintf("%s.json", name))
+	if err != nil {
+		return "", err
+	}
 
-// 	result, err := client.Run(cmds)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
+	return string(data), nil
+}
 
-// 	print(result)
-// }
+func getResponse(name string) ([]byte, error) {
+	return ioutil.ReadFile(fmt.Sprintf("testdata/response/%s", name))
+}

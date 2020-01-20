@@ -1,0 +1,9 @@
+{
+    "return": {
+        "local": ["master.pem", "master.pub"],
+        "minions_rejected": [],
+        "minions_denied": [],
+        "minions_pre": [],
+        "minions": ["minion1", "minion2"]
+    }
+}

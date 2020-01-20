@@ -1,0 +1,11 @@
+{
+    "return": [{
+            "perms": [".*", "@wheel", "@runner"],
+            "start": 1579464960.873136,
+            "token": "75023210fea33137fd41d24d75998b93eba9b103",
+            "expire": 1579508160.873137,
+            "user": "test",
+            "eauth": "file"
+        }
+    ]
+}
