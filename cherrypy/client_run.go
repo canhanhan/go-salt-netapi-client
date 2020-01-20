@@ -16,7 +16,7 @@ type Command struct {
 
 // RunJob runs a command on master using Run endpoint
 func (c *Client) RunJob(cmd Command) (map[string]interface{}, error) {
-	res, err := c.RunJobs([]Command { cmd })
+	res, err := c.RunJobs([]Command{cmd})
 	if err != nil {
 		return nil, err
 	}
@@ -45,13 +45,12 @@ func (c *Client) RunJobs(cmds []Command) ([]map[string]interface{}, error) {
 		items[i] = data
 	}
 
-
 	log.Println("[DEBUG] Sending run request")
 	res, err := c.requestJSON("POST", "run", items)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	results := res["return"].([]interface{})
 	output := make([]map[string]interface{}, len(results))
 	for i, v := range results {
@@ -60,4 +59,3 @@ func (c *Client) RunJobs(cmds []Command) ([]map[string]interface{}, error) {
 
 	return output, nil
 }
-

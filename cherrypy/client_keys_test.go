@@ -8,7 +8,7 @@ import (
 
 func TestGetKeys(t *testing.T) {
 	c, mux, teardown := setup(t)
-	defer teardown()	
+	defer teardown()
 	handleJSONRequest(mux, "/keys", "key_list_success")
 
 	res, err := c.Keys()
@@ -26,7 +26,7 @@ func TestGetKeys(t *testing.T) {
 
 func TestGetKey(t *testing.T) {
 	c, mux, teardown := setup(t)
-	defer teardown()	
+	defer teardown()
 	handleJSONRequest(mux, "/keys/minion1", "key_get_success")
 
 	res, err := c.Key("minion1")
@@ -37,7 +37,7 @@ func TestGetKey(t *testing.T) {
 
 func TestGetKeyMissingMinion(t *testing.T) {
 	c, mux, teardown := setup(t)
-	defer teardown()	
+	defer teardown()
 	handleJSONRequest(mux, "/keys/minion3", "key_get_missing")
 
 	_, err := c.Key("minion3")
@@ -47,7 +47,7 @@ func TestGetKeyMissingMinion(t *testing.T) {
 
 func TestGenerateKeySuccess(t *testing.T) {
 	c, mux, teardown := setup(t)
-	defer teardown()	
+	defer teardown()
 
 	mux.HandleFunc("/keys", func(w http.ResponseWriter, req *http.Request) {
 		content, err := getResponse("key_generate_success.bin")
@@ -55,9 +55,9 @@ func TestGenerateKeySuccess(t *testing.T) {
 			http.Error(w, err.Error(), 500)
 		} else {
 			w.Write(content)
-		}	
+		}
 	})
-	
+
 	res, err := c.GenerateKeys("minion1", 2048, false)
 
 	assert.NoError(t, err)
@@ -68,7 +68,7 @@ func TestGenerateKeySuccess(t *testing.T) {
 
 func TestGenerateKeyFailure(t *testing.T) {
 	c, mux, teardown := setup(t)
-	defer teardown()	
+	defer teardown()
 
 	mux.HandleFunc("/keys", func(w http.ResponseWriter, req *http.Request) {
 		content, err := getResponse("key_generate_failure.bin")
@@ -76,9 +76,9 @@ func TestGenerateKeyFailure(t *testing.T) {
 			http.Error(w, err.Error(), 500)
 		} else {
 			w.Write(content)
-		}	
+		}
 	})
-	
+
 	_, err := c.GenerateKeys("minion1", 2048, false)
 
 	assert.Error(t, err)

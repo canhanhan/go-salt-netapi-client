@@ -1,16 +1,16 @@
 package cherrypy
 
 import (
+	"github.com/stretchr/testify/assert"
 	"net/http"
 	"testing"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestValidLogin(t *testing.T) {
 	c, mux, teardown := setup(t)
-	defer teardown()	
+	defer teardown()
 	handleJSONRequest(mux, "/login", "auth_login_success")
-	
+
 	err := c.Login()
 
 	assert.NoError(t, err)
@@ -25,14 +25,14 @@ func TestInvalidLogin(t *testing.T) {
 	})
 
 	err := c.Login()
-	
+
 	assert.Error(t, err)
 	assert.Equal(t, "", c.Token)
 }
 
 func TestLogout(t *testing.T) {
 	c, mux, teardown := setup(t)
-	defer teardown()	
+	defer teardown()
 	handleJSONRequest(mux, "/login", "auth_login_success")
 	handleJSONRequest(mux, "/logout", "auth_logout_success")
 	if err := c.Login(); err != nil {

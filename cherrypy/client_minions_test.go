@@ -1,14 +1,14 @@
 package cherrypy
 
 import (
-	"testing"
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 func TestGetSingleOnlineMinion(t *testing.T) {
 	c, mux, teardown := setup(t)
-	defer teardown()	
-	handleJSONRequest(mux, "/minions/minion1", "minions_get_success")	
+	defer teardown()
+	handleJSONRequest(mux, "/minions/minion1", "minions_get_success")
 
 	res, err := c.Minion("minion1")
 
@@ -19,8 +19,8 @@ func TestGetSingleOnlineMinion(t *testing.T) {
 
 func TestGetSingleOfflineMinion(t *testing.T) {
 	c, mux, teardown := setup(t)
-	defer teardown()	
-	handleJSONRequest(mux, "/minions/minion2", "minions_get_offline")	
+	defer teardown()
+	handleJSONRequest(mux, "/minions/minion2", "minions_get_offline")
 
 	res, err := c.Minion("minion2")
 
@@ -31,8 +31,8 @@ func TestGetSingleOfflineMinion(t *testing.T) {
 
 func TestGetSingleMissingMinion(t *testing.T) {
 	c, mux, teardown := setup(t)
-	defer teardown()	
-	handleJSONRequest(mux, "/minions/minion3", "minions_get_missing")	
+	defer teardown()
+	handleJSONRequest(mux, "/minions/minion3", "minions_get_missing")
 
 	res, err := c.Minion("minion3")
 
@@ -42,14 +42,14 @@ func TestGetSingleMissingMinion(t *testing.T) {
 
 func TestSubmitSingleJob(t *testing.T) {
 	c, mux, teardown := setup(t)
-	defer teardown()	
-	handleJSONRequest(mux, "/minions", "minions_submit_single")	
+	defer teardown()
+	handleJSONRequest(mux, "/minions", "minions_submit_single")
 
 	res, err := c.SubmitJob(MinionJob{
 		Target:   "minion1",
 		Function: "test.ping",
 	})
-	
+
 	assert.NoError(t, err)
 	assert.Contains(t, res.Minions, "minion1")
 	assert.NotEmpty(t, res.JobID)
@@ -57,8 +57,8 @@ func TestSubmitSingleJob(t *testing.T) {
 
 func TestSubmitSingleJobToOfflineMinion(t *testing.T) {
 	c, mux, teardown := setup(t)
-	defer teardown()	
-	handleJSONRequest(mux, "/minions", "minions_submit_offline")	
+	defer teardown()
+	handleJSONRequest(mux, "/minions", "minions_submit_offline")
 
 	res, err := c.SubmitJob(MinionJob{
 		Target:   "minion2",
@@ -72,8 +72,8 @@ func TestSubmitSingleJobToOfflineMinion(t *testing.T) {
 
 func TestSubmitSingleJobToMissingMinion(t *testing.T) {
 	c, mux, teardown := setup(t)
-	defer teardown()	
-	handleJSONRequest(mux, "/minions", "minions_submit_missing")	
+	defer teardown()
+	handleJSONRequest(mux, "/minions", "minions_submit_missing")
 
 	res, err := c.SubmitJob(MinionJob{
 		Target:   "minion3",
@@ -86,7 +86,7 @@ func TestSubmitSingleJobToMissingMinion(t *testing.T) {
 
 func TestSubmitMultipleJobs(t *testing.T) {
 	c, mux, teardown := setup(t)
-	defer teardown()	
+	defer teardown()
 	handleJSONRequest(mux, "/minions", "minions_submit_multiple")
 
 	res, err := c.SubmitJobs([]MinionJob{
@@ -110,7 +110,7 @@ func TestSubmitMultipleJobs(t *testing.T) {
 
 func TestSubmitMultipleJobToOfflineMinion(t *testing.T) {
 	c, mux, teardown := setup(t)
-	defer teardown()	
+	defer teardown()
 	handleJSONRequest(mux, "/minions", "minions_submit_multiple_offline")
 
 	res, err := c.SubmitJobs([]MinionJob{
@@ -134,7 +134,7 @@ func TestSubmitMultipleJobToOfflineMinion(t *testing.T) {
 
 func TestSubmitMuiltipleJobsToMissingMinion(t *testing.T) {
 	c, mux, teardown := setup(t)
-	defer teardown()	
+	defer teardown()
 	handleJSONRequest(mux, "/minions", "minions_submit_multiple_missing")
 
 	res, err := c.SubmitJobs([]MinionJob{
@@ -154,7 +154,7 @@ func TestSubmitMuiltipleJobsToMissingMinion(t *testing.T) {
 
 func TestSubmitMuiltipleJobsToMixedStatusMinions(t *testing.T) {
 	c, mux, teardown := setup(t)
-	defer teardown()	
+	defer teardown()
 	handleJSONRequest(mux, "/minions", "minions_submit_multiple_mixed")
 
 	res, err := c.SubmitJobs([]MinionJob{
@@ -165,7 +165,7 @@ func TestSubmitMuiltipleJobsToMixedStatusMinions(t *testing.T) {
 		MinionJob{
 			Target:   "minion2",
 			Function: "test.ping",
-		},		
+		},
 		MinionJob{
 			Target:   "minion3",
 			Function: "test.ping",

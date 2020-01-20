@@ -4,9 +4,9 @@ import (
 	"fmt"
 )
 
-// Hook fires an event on Salt's event bus 
-func (c *Client) Hook(id string, data map[string]interface{}) (error) {
-	res, err := c.requestJSON("POST", "hook/" + id, data)
+// Hook fires an event on Salt's event bus
+func (c *Client) Hook(id string, data map[string]interface{}) error {
+	res, err := c.requestJSON("POST", "hook/"+id, data)
 	if err != nil {
 		return err
 	}
@@ -18,7 +18,7 @@ func (c *Client) Hook(id string, data map[string]interface{}) (error) {
 		}
 
 		return nil
-	} 
-	
+	}
+
 	return fmt.Errorf("unexpected response from Salt: %v", res)
 }

@@ -1,6 +1,6 @@
 package cherrypy
 
-import (	
+import (
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -13,8 +13,8 @@ import (
 const (
 	testUsername = "sample_user"
 	testPassword = "sample_password"
-	testEAuth = "file"
-	testToken = "75023210fea33137fd41d24d75998b93eba9b103"
+	testEAuth    = "file"
+	testToken    = "75023210fea33137fd41d24d75998b93eba9b103"
 )
 
 func TestMain(m *testing.M) {
@@ -50,9 +50,9 @@ func handleRequestWithHeaders(mux *http.ServeMux, path string, scenario string, 
 			for k, v := range headers {
 				w.Header().Set(k, v)
 			}
-			
+
 			fmt.Fprintf(w, content)
-		}	
+		}
 	})
 }
 

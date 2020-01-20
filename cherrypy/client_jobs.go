@@ -13,13 +13,13 @@ type JobTarget interface {
 }
 
 type Job struct {
-	ID        string
-	Function  string
-	Target    JobTarget
-	Arguments []interface{}
+	ID          string
+	Function    string
+	Target      JobTarget
+	Arguments   []interface{}
 	KWArguments map[string]interface{}
-	StartTime time.Time
-	User      string
+	StartTime   time.Time
+	User        string
 }
 
 type JobDetails struct {
@@ -88,7 +88,7 @@ func (c *Client) Job(id string) (*JobDetails, error) {
 	job.User = dict["User"].(string)
 	job.Minions = stringSlice(dict["Minions"].([]interface{}))
 	job.Returns = dict["Result"].(map[string]interface{})
-	
+
 	job.Arguments, job.KWArguments = parseArgs(dict["Arguments"].([]interface{}))
 
 	return &job, nil
@@ -130,7 +130,7 @@ func (c *Client) Jobs() ([]Job, error) {
 		}
 
 		job.Arguments, job.KWArguments = parseArgs(j["Arguments"].([]interface{}))
-		
+
 		jobs[i] = job
 		i++
 	}
@@ -149,7 +149,9 @@ func parseArgs(arguments []interface{}) ([]interface{}, map[string]interface{}) 
 		if d, ok := arg.(map[string]interface{}); ok {
 			if kw, ok := d["__kwarg__"]; ok && kw.(bool) {
 				for k, v := range d {
-					if k == "__kwarg__" { continue }
+					if k == "__kwarg__" {
+						continue
+					}
 					kwargs[k] = v
 				}
 			} else {

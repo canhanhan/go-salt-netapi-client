@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"strconv"	
+	"strconv"
 )
 
 type KeyResult struct {
@@ -81,9 +81,9 @@ func (c *Client) GenerateKeys(id string, keySize int, force bool) (*MinionKeys, 
 				break
 			}
 
-			return nil, err			
+			return nil, err
 		}
-		
+
 		target := header.Name
 		if header.Typeflag != tar.TypeReg {
 			return nil, fmt.Errorf("unexpected file type in tar file for: %s", target)
@@ -107,6 +107,6 @@ func (c *Client) GenerateKeys(id string, keySize int, force bool) (*MinionKeys, 
 	if keys.Public == "" || keys.Private == "" {
 		return nil, errors.New("public or private key was not received")
 	}
-	
+
 	return &keys, nil
 }
