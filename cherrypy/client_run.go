@@ -35,6 +35,7 @@ type Command struct {
 	Function   string
 	Args       []string
 	Kwargs     map[string]interface{}
+	FullReturn bool
 }
 
 /*
@@ -79,6 +80,18 @@ func (c *Client) RunJobs(cmds []Command) ([]map[string]interface{}, error) {
 		}
 		if cmd.Kwargs != nil {
 			data["kwarg"] = cmd.Kwargs
+		}
+
+		// wheel throws following error if full_return is sent as a seperate argument
+		// TypeError: call_func() got multiple values for keyword argument 'full_return'
+		if cmd.Client == WheelClient {
+			if cmd.Kwargs == nil {
+				cmd.Kwargs = make(map[string]interface{})
+			}
+
+			cmd.Kwargs["full_return"] = cmd.FullReturn
+		} else {
+			data["full_return"] = cmd.FullReturn
 		}
 
 		data["username"] = c.eauth.Username
