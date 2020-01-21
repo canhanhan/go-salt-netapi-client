@@ -5,9 +5,31 @@ import (
 	"log"
 )
 
+/*
+CommandClient indicates Salt API which client to use
+
+https://docs.saltstack.com/en/latest/ref/netapi/all/salt.netapi.rest_cherrypy.html#usage
+
+See the constants available in this file for possible values.
+*/
+type CommandClient string
+
+const (
+	// LocalClient sends commands to Minions. Equivalent to the salt CLI command.
+	LocalClient CommandClient = "local"
+
+	// RunnerClient invokes runner modules on the Master.
+	// Equivalent to the salt-run CLI command.
+	RunnerClient = "runner"
+
+	// WheelClient invokes wheel modules on the Master.
+	// Wheel modules do not have a direct CLI equivalent
+	WheelClient = "wheel"
+)
+
 // Command to send to Run endpont
 type Command struct {
-	Client     string
+	Client     CommandClient
 	Target     string
 	TargetType TargetType
 	Function   string
