@@ -1,3 +1,5 @@
+// Package cherrypy provides a client to integrate with Salt NetAPI's rest_cherrypy module
+// https://docs.saltstack.com/en/latest/ref/netapi/all/salt.netapi.rest_cherrypy.html
 package cherrypy
 
 import (
@@ -10,27 +12,41 @@ import (
 	"net/http"
 )
 
-// EAuth contains authenticated data
-type EAuth struct {
+type eauth struct {
 	Username string
 	Password string
 	Backend  string
 }
 
-// Client handles communication with CherryPy
+/*
+Client handles communication with NetAPI rest_cherrypy module (https://docs.saltstack.com/en/latest/ref/netapi/all/salt.netapi.rest_cherrypy.html)
+
+Example usage:
+	client := cherrypy.NewClient("http://master:8000", "admin", "password", "pam")
+	if err := client.Login(); err != nil {
+		return err
+	}
+	defer client.Logout()
+
+	minion := client.Minion("minion1")
+*/
 type Client struct {
-	Client  *http.Client
-	EAuth   *EAuth
+	client  *http.Client
+	eauth   *eauth
 	Address string
 	Token   string
 }
 
-// NewClient creates a new instance of client
-func NewClient(address string, username string, password string, eauth string) *Client {
-	a := EAuth{
+/*
+NewClient creates a new instance of client
+  address: URL of the cherrypy instance on a master (e.g.: https://salt-master:8000)
+  backend: External authentication (eauth) backend (https://docs.saltstack.com/en/latest/topics/eauth/index.html)
+*/
+func NewClient(address string, username string, password string, backend string) *Client {
+	a := eauth{
 		Username: username,
 		Password: password,
-		Backend:  eauth,
+		Backend:  backend,
 	}
 
 	tr := &http.Transport{
@@ -40,9 +56,9 @@ func NewClient(address string, username string, password string, eauth string) *
 	}
 
 	return &Client{
-		Client:  &http.Client{Transport: tr},
+		client:  &http.Client{Transport: tr},
+		eauth:   &a,
 		Address: address,
-		EAuth:   &a,
 	}
 }
 
@@ -64,7 +80,7 @@ func (c *Client) request(method string, endpoint string, data interface{}) ([]by
 		req.Header.Set("X-Auth-Token", c.Token)
 	}
 
-	resp, err := c.Client.Do(req)
+	resp, err := c.client.Do(req)
 	if err != nil {
 		return nil, err
 	}

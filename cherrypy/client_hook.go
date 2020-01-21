@@ -4,7 +4,14 @@ import (
 	"fmt"
 )
 
-// Hook fires an event on Salt's event bus
+/*
+Hook fires an event on Salt's event bus
+
+All events are prefixed with salt/netapi/hook.
+Therefore if the id is set to "test"; Salt Reactor will receive "salt/netapi/hook/test" event.
+
+https://docs.saltstack.com/en/latest/ref/netapi/all/salt.netapi.rest_cherrypy.html#salt.netapi.rest_cherrypy.app.Webhook.POST
+*/
 func (c *Client) Hook(id string, data map[string]interface{}) error {
 	res, err := c.requestJSON("POST", "hook/"+id, data)
 	if err != nil {

@@ -3,53 +3,40 @@ package cherrypy
 import (
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 )
 
-type JobTarget interface {
-	Target() string
-	Type() string
-}
+var (
+	// ErrorJobNotFound indicates requested job was not found
+	ErrorJobNotFound = errors.New("job was not found")
+)
 
+// Job contains summary of a job returned by Jobs()
 type Job struct {
 	ID          string
 	Function    string
-	Target      JobTarget
+	Target      string
+	TargetType  TargetType
 	Arguments   []interface{}
 	KWArguments map[string]interface{}
 	StartTime   time.Time
 	User        string
 }
 
+// JobDetails contain job summary and returns per minion
 type JobDetails struct {
 	Job
 	Minions []string
 	Returns map[string]interface{}
 }
 
-type GlobTargetType struct {
-	Expression string
-}
+/*
+Job retrieves details of a single job
 
-func (c GlobTargetType) Target() string {
-	return c.Expression
-}
-func (c GlobTargetType) Type() string {
-	return "glob"
-}
+If the job was not found; ErrorJobNotFound will be returned.
 
-type ListTargetType struct {
-	Minions []string
-}
-
-func (c ListTargetType) Target() string {
-	return strings.Join(c.Minions, ", ")
-}
-func (c ListTargetType) Type() string {
-	return "list"
-}
-
+https://docs.saltstack.com/en/latest/ref/netapi/all/salt.netapi.rest_cherrypy.html#get--jobs-(jid)
+*/
 func (c *Client) Job(id string) (*JobDetails, error) {
 	res, err := c.requestJSON("GET", "jobs/"+id, nil)
 	if err != nil {
@@ -63,7 +50,7 @@ func (c *Client) Job(id string) (*JobDetails, error) {
 
 	dict := infoBlock[0].(map[string]interface{})
 	if _, ok := dict["jid"]; !ok {
-		return nil, fmt.Errorf("job %s was not found", id)
+		return nil, fmt.Errorf("%s: %w", id, ErrorJobNotFound)
 	}
 	if v, ok := dict["Error"]; ok {
 		return nil, errors.New(v.(string))
@@ -74,26 +61,25 @@ func (c *Client) Job(id string) (*JobDetails, error) {
 		return nil, err
 	}
 
-	targetType := dict["Target-type"].(string)
-	target, err := parseTarget(dict["Target"].(string), targetType)
-	if err != nil {
-		return nil, err
-	}
-
 	job := JobDetails{}
 	job.ID = dict["jid"].(string)
 	job.Function = dict["Function"].(string)
 	job.StartTime = startTime
-	job.Target = target
+	job.Target = dict["Target"].(string)
+	job.TargetType = targetTypes[dict["Target-type"].(string)]
 	job.User = dict["User"].(string)
 	job.Minions = stringSlice(dict["Minions"].([]interface{}))
 	job.Returns = dict["Result"].(map[string]interface{})
-
 	job.Arguments, job.KWArguments = parseArgs(dict["Arguments"].([]interface{}))
 
 	return &job, nil
 }
 
+/*
+Jobs retrieves status of all jobs from Salt Master.
+
+https://docs.saltstack.com/en/latest/ref/netapi/all/salt.netapi.rest_cherrypy.html#get--jobs-(jid)
+*/
 func (c *Client) Jobs() ([]Job, error) {
 	res, err := c.requestJSON("GET", "jobs", nil)
 	if err != nil {
@@ -115,18 +101,13 @@ func (c *Client) Jobs() ([]Job, error) {
 			return nil, err
 		}
 
-		targetType := j["Target-type"].(string)
-		target, err := parseTarget(j["Target"], targetType)
-		if err != nil {
-			return nil, err
-		}
-
 		job := Job{
-			ID:        k,
-			Function:  j["Function"].(string),
-			StartTime: startTime,
-			Target:    target,
-			User:      j["User"].(string),
+			ID:         k,
+			Function:   j["Function"].(string),
+			StartTime:  startTime,
+			Target:     j["Target"].(string),
+			TargetType: targetTypes[j["Target-type"].(string)],
+			User:       j["User"].(string),
 		}
 
 		job.Arguments, job.KWArguments = parseArgs(j["Arguments"].([]interface{}))
@@ -163,19 +144,4 @@ func parseArgs(arguments []interface{}) ([]interface{}, map[string]interface{}) 
 	}
 
 	return args, kwargs
-}
-
-func parseTarget(target interface{}, targetType string) (JobTarget, error) {
-	switch targetType {
-	case "glob":
-		return GlobTargetType{
-			Expression: target.(string),
-		}, nil
-	case "list":
-		return ListTargetType{
-			Minions: stringSlice(target.([]interface{})),
-		}, nil
-	default:
-		return nil, fmt.Errorf("unknown target type: %s", targetType)
-	}
 }

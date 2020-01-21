@@ -1,6 +1,7 @@
 package cherrypy
 
 import (
+	"errors"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -35,8 +36,11 @@ func TestGetSingleMissingMinion(t *testing.T) {
 	handleJSONRequest(mux, "/minions/minion3", "minions_get_missing")
 
 	res, err := c.Minion("minion3")
+	if !errors.Is(err, ErrorMinionNotFound) {
+		t.Fatal(err)
+	}
 
-	assert.NoError(t, err)
+	assert.Error(t, err)
 	assert.Nil(t, res)
 }
 
@@ -46,8 +50,9 @@ func TestSubmitSingleJob(t *testing.T) {
 	handleJSONRequest(mux, "/minions", "minions_submit_single")
 
 	res, err := c.SubmitJob(MinionJob{
-		Target:   "minion1",
-		Function: "test.ping",
+		Target:     "minion1",
+		TargetType: Glob,
+		Function:   "test.ping",
 	})
 
 	assert.NoError(t, err)
@@ -61,8 +66,9 @@ func TestSubmitSingleJobToOfflineMinion(t *testing.T) {
 	handleJSONRequest(mux, "/minions", "minions_submit_offline")
 
 	res, err := c.SubmitJob(MinionJob{
-		Target:   "minion2",
-		Function: "test.ping",
+		Target:     "minion2",
+		TargetType: Glob,
+		Function:   "test.ping",
 	})
 
 	assert.NoError(t, err)
@@ -76,8 +82,9 @@ func TestSubmitSingleJobToMissingMinion(t *testing.T) {
 	handleJSONRequest(mux, "/minions", "minions_submit_missing")
 
 	res, err := c.SubmitJob(MinionJob{
-		Target:   "minion3",
-		Function: "test.ping",
+		Target:     "minion3",
+		TargetType: Glob,
+		Function:   "test.ping",
 	})
 
 	assert.NoError(t, err)
@@ -91,12 +98,14 @@ func TestSubmitMultipleJobs(t *testing.T) {
 
 	res, err := c.SubmitJobs([]MinionJob{
 		MinionJob{
-			Target:   "minion1",
-			Function: "test.ping",
+			Target:     "minion1",
+			TargetType: Glob,
+			Function:   "test.ping",
 		},
 		MinionJob{
-			Target:   "minion1",
-			Function: "test.ping",
+			Target:     "minion1",
+			TargetType: Glob,
+			Function:   "test.ping",
 		},
 	})
 
@@ -115,12 +124,14 @@ func TestSubmitMultipleJobToOfflineMinion(t *testing.T) {
 
 	res, err := c.SubmitJobs([]MinionJob{
 		MinionJob{
-			Target:   "minion2",
-			Function: "test.ping",
+			Target:     "minion2",
+			TargetType: Glob,
+			Function:   "test.ping",
 		},
 		MinionJob{
-			Target:   "minion2",
-			Function: "test.ping",
+			Target:     "minion2",
+			TargetType: Glob,
+			Function:   "test.ping",
 		},
 	})
 
@@ -139,12 +150,14 @@ func TestSubmitMuiltipleJobsToMissingMinion(t *testing.T) {
 
 	res, err := c.SubmitJobs([]MinionJob{
 		MinionJob{
-			Target:   "minion3",
-			Function: "test.ping",
+			Target:     "minion3",
+			TargetType: Glob,
+			Function:   "test.ping",
 		},
 		MinionJob{
-			Target:   "minion3",
-			Function: "test.ping",
+			Target:     "minion3",
+			TargetType: Glob,
+			Function:   "test.ping",
 		},
 	})
 
@@ -159,16 +172,19 @@ func TestSubmitMuiltipleJobsToMixedStatusMinions(t *testing.T) {
 
 	res, err := c.SubmitJobs([]MinionJob{
 		MinionJob{
-			Target:   "minion1",
-			Function: "test.ping",
+			Target:     "minion1",
+			TargetType: Glob,
+			Function:   "test.ping",
 		},
 		MinionJob{
-			Target:   "minion2",
-			Function: "test.ping",
+			Target:     "minion2",
+			TargetType: Glob,
+			Function:   "test.ping",
 		},
 		MinionJob{
-			Target:   "minion3",
-			Function: "test.ping",
+			Target:     "minion3",
+			TargetType: Glob,
+			Function:   "test.ping",
 		},
 	})
 

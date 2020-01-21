@@ -11,9 +11,10 @@ func TestRunLocalCommand(t *testing.T) {
 	handleJSONRequest(mux, "/run", "run_local_success")
 
 	cmd := Command{
-		Client:   "local",
-		Target:   "minion1",
-		Function: "test.ping",
+		Client:     "local",
+		Target:     "minion1",
+		TargetType: Glob,
+		Function:   "test.ping",
 	}
 
 	res, err := c.RunJob(cmd)
@@ -29,14 +30,16 @@ func TestRunLocalCommands(t *testing.T) {
 
 	cmds := []Command{
 		Command{
-			Client:   "local",
-			Target:   "minion1",
-			Function: "test.ping",
+			Client:     "local",
+			Target:     "minion1",
+			TargetType: Glob,
+			Function:   "test.ping",
 		},
 		Command{
-			Client:   "local",
-			Target:   "minion1",
-			Function: "test.ping",
+			Client:     "local",
+			Target:     "minion1",
+			TargetType: Glob,
+			Function:   "test.ping",
 		},
 	}
 

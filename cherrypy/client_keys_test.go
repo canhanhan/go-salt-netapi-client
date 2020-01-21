@@ -58,7 +58,7 @@ func TestGenerateKeySuccess(t *testing.T) {
 		}
 	})
 
-	res, err := c.GenerateKeys("minion1", 2048, false)
+	res, err := c.GenerateKeyPair("minion1", 2048, false)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, res)
@@ -79,7 +79,7 @@ func TestGenerateKeyFailure(t *testing.T) {
 		}
 	})
 
-	_, err := c.GenerateKeys("minion1", 2048, false)
+	_, err := c.GenerateKeyPair("minion1", 2048, false)
 
 	assert.Error(t, err)
 }
