@@ -43,11 +43,22 @@ func (c *Client) RunJobs(cmds []Command) ([]map[string]interface{}, error) {
 	for i, cmd := range cmds {
 		data := make(map[string]interface{})
 		data["client"] = cmd.Client
-		data["tgt"] = cmd.Target
-		data["tgt_type"] = cmd.TargetType
-		data["fun"] = cmd.Function
-		data["arg"] = cmd.Args
-		data["kwarg"] = cmd.Kwargs
+		if cmd.Target != "" {
+			data["tgt"] = cmd.Target
+		}
+		if cmd.TargetType != "" {
+			data["tgt_type"] = cmd.TargetType
+		}
+		if cmd.Function != "" {
+			data["fun"] = cmd.Function
+		}
+		if len(cmd.Args) > 0 {
+			data["arg"] = cmd.Args
+		}
+		if cmd.Kwargs != nil {
+			data["kwarg"] = cmd.Kwargs
+		}
+
 		data["username"] = c.eauth.Username
 		data["password"] = c.eauth.Password
 		data["eauth"] = c.eauth.Backend
