@@ -12,7 +12,7 @@ type Command struct {
 	TargetType TargetType
 	Function   string
 	Args       []string
-	Kwargs     map[string]string
+	Kwargs     map[string]interface{}
 }
 
 /*
