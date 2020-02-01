@@ -101,7 +101,7 @@ func (c *Client) GenerateKeyPair(id string, keySize int, force bool) (*MinionKey
 	data["password"] = c.eauth.Password
 	data["eauth"] = c.eauth.Backend
 
-	body, err := c.request("POST", "keys", data)
+	body, err := c.request("POST", "keys", "", data)
 	if err != nil {
 		return nil, err
 	}

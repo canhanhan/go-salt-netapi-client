@@ -62,7 +62,7 @@ func NewClient(address string, username string, password string, backend string)
 	}
 }
 
-func (c *Client) request(method string, endpoint string, data interface{}) ([]byte, error) {
+func (c *Client) request(method string, endpoint string, accept string, data interface{}) ([]byte, error) {
 	url := fmt.Sprintf("%s/%s", c.Address, endpoint)
 	jsonData, err := json.Marshal(data)
 	if err != nil {
@@ -75,6 +75,7 @@ func (c *Client) request(method string, endpoint string, data interface{}) ([]by
 		return nil, err
 	}
 
+	req.Header.Set("Accept", accept)
 	req.Header.Set("Content-Type", "application/json")
 	if c.Token != "" {
 		req.Header.Set("X-Auth-Token", c.Token)
@@ -100,7 +101,7 @@ func (c *Client) request(method string, endpoint string, data interface{}) ([]by
 }
 
 func (c *Client) requestJSON(method string, endpoint string, data interface{}) (map[string]interface{}, error) {
-	body, err := c.request(method, endpoint, data)
+	body, err := c.request(method, endpoint, "application/json", data)
 	if err != nil {
 		return nil, err
 	}
