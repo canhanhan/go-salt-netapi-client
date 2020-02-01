@@ -1,20 +1,25 @@
 package cherrypy
 
 import (
+	"bufio"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 const (
-	testUsername = "sample_user"
-	testPassword = "sample_password"
-	testEAuth    = "file"
-	testToken    = "75023210fea33137fd41d24d75998b93eba9b103"
+	testUsername = "test_username"
+	testPassword = "test"
+	testEAuth    = "pam"
+	testToken    = "eaffa1fd47cf4254dbcbcf2c0145f8b5f78d1e70"
 )
 
 func TestMain(m *testing.M) {
@@ -30,41 +35,132 @@ func setup(t *testing.T) (*Client, *http.ServeMux, func()) {
 	return client, mux, server.Close
 }
 
-func handleJSONRequest(mux *http.ServeMux, path string, scenario string) {
-	handleRequestWithHeaders(mux, path, scenario, map[string]string{
-		"Content-Type": "application/json",
-		"X-Auth-Token": testToken,
-	})
+type responseReply struct {
+	StatusCode int
+	Headers    map[string]string
+	Body       []byte
 }
 
-func handleRequest(mux *http.ServeMux, path string, scenario string) {
-	handleRequestWithHeaders(mux, path, scenario, map[string]string{})
-}
-
-func handleRequestWithHeaders(mux *http.ServeMux, path string, scenario string, headers map[string]string) {
-	mux.HandleFunc(path, func(w http.ResponseWriter, req *http.Request) {
-		content, err := getResponseText(scenario)
-		if err != nil {
-			http.Error(w, err.Error(), 500)
-		} else {
-			for k, v := range headers {
-				w.Header().Set(k, v)
-			}
-
-			fmt.Fprintf(w, content)
-		}
-	})
-}
-
-func getResponseText(name string) (string, error) {
-	data, err := getResponse(fmt.Sprintf("%s.json", name))
+func parseFile(name string) (hdr string, body string, err error) {
+	b, err := ioutil.ReadFile(fmt.Sprintf("testdata/%s", name))
 	if err != nil {
-		return "", err
+		return
 	}
 
-	return string(data), nil
+	var hEnd, bStart int
+	for i, v := range b {
+		if i+1 < len(b) && v == '\n' && b[i+1] == '\n' {
+			hEnd = i
+			bStart = i + 2
+			break
+		} else if i+3 < len(b) && v == '\r' && b[i+1] == '\n' && b[i+2] == '\r' && b[i+3] == '\n' {
+			hEnd = i
+			bStart = i + 4
+			break
+		}
+	}
+
+	if bStart == 0 || hEnd == 0 {
+		err = fmt.Errorf("Could not parse the file. hEnd: %d, bStart: %d", hEnd, bStart)
+		return
+	}
+
+	hdr = string(b[0:hEnd])
+	body = string(b[bStart:])
+
+	return
 }
 
-func getResponse(name string) ([]byte, error) {
-	return ioutil.ReadFile(fmt.Sprintf("testdata/response/%s", name))
+func getContentFromFile(name string) (*strings.Reader, error) {
+	hdr, body, err := parseFile(name)
+	if err != nil {
+		return nil, err
+	}
+
+	hdr += fmt.Sprintf("\nContent-Length: %d", len(body))
+
+	return strings.NewReader(hdr + "\n\n" + body), nil
+}
+
+func setupScenario(t *testing.T, mux *http.ServeMux, scenario string) {
+	reqf, err := getContentFromFile(scenario + ".req")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	request, err := http.ReadRequest(bufio.NewReader(reqf))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expectedRequestBody, err := ioutil.ReadAll(request.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	path := request.URL.Path
+
+	mux.HandleFunc(path, func(w http.ResponseWriter, req *http.Request) {
+		f, err := getContentFromFile(scenario + ".res")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		actualRequestBody, err := ioutil.ReadAll(req.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		response, err := http.ReadResponse(bufio.NewReader(f), request)
+		if err != nil {
+			t.Fatal(err)
+		}
+		responseBody, err := ioutil.ReadAll(response.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Compare request
+		assert.Equal(t, request.Method, req.Method)
+		for k, v := range request.Header {
+			if k == "Content-Length" && request.Header.Get("Content-Type") == "application/json" {
+				continue
+			}
+
+			if value, ok := req.Header[k]; !ok {
+				assert.Failf(t, "Request headers do not contain %s", k)
+			} else {
+				assert.Equal(t, v, value)
+			}
+		}
+
+		if request.Header.Get("Content-Type") == "application/json" {
+			expectedRequestData := make(map[string]interface{})
+			if err := json.Unmarshal(expectedRequestBody, &expectedRequestData); err != nil {
+				t.Fatal(err)
+			}
+
+			actualRequestData := make(map[string]interface{})
+			if err := json.Unmarshal(actualRequestBody, &actualRequestData); err != nil {
+				t.Fatal(err)
+			}
+
+			assert.Equal(t, expectedRequestData, actualRequestData)
+		} else {
+			assert.Equal(t, expectedRequestBody, actualRequestBody)
+		}
+
+		// Send response
+		w.WriteHeader(response.StatusCode)
+		for k, vs := range response.Header {
+			for _, v := range vs {
+				w.Header().Add(k, v)
+			}
+		}
+
+		_, err = w.Write(responseBody)
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
 }
