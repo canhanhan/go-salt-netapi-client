@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"strconv"
 )
 
 var (
@@ -95,8 +94,8 @@ https://docs.saltstack.com/en/latest/ref/netapi/all/salt.netapi.rest_cherrypy.ht
 func (c *Client) GenerateKeyPair(id string, keySize int, force bool) (*MinionKeyPair, error) {
 	data := make(map[string]interface{})
 	data["mid"] = id
-	data["keysize"] = strconv.Itoa(keySize)
-	data["force"] = strconv.FormatBool(force)
+	data["keysize"] = keySize
+	data["force"] = force
 	data["username"] = c.eauth.Username
 	data["password"] = c.eauth.Password
 	data["eauth"] = c.eauth.Backend
