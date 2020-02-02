@@ -48,3 +48,33 @@ var targetTypes = map[string]TargetType{
 	"compound":    Compound,
 	"ipcidr":      IPCIDR,
 }
+
+type Target interface {
+	GetTarget() interface{}
+	GetType() TargetType
+}
+
+type ListTarget struct {
+	Targets []string
+}
+
+func (t ListTarget) GetTarget() interface{} {
+	return t.Targets
+}
+
+func (t ListTarget) GetType() TargetType {
+	return List
+}
+
+type ExpressionTarget struct {
+	Expression string
+	Type       TargetType
+}
+
+func (t ExpressionTarget) GetTarget() interface{} {
+	return t.Expression
+}
+
+func (t ExpressionTarget) GetType() TargetType {
+	return t.Type
+}

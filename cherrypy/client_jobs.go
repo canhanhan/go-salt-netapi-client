@@ -15,8 +15,7 @@ var (
 type Job struct {
 	ID          string
 	Function    string
-	Target      string
-	TargetType  TargetType
+	Target      Target
 	Arguments   []interface{}
 	KWArguments map[string]interface{}
 	StartTime   time.Time
@@ -65,12 +64,22 @@ func (c *Client) Job(id string) (*JobDetails, error) {
 	job.ID = dict["jid"].(string)
 	job.Function = dict["Function"].(string)
 	job.StartTime = startTime
-	job.Target = dict["Target"].(string)
-	job.TargetType = targetTypes[dict["Target-type"].(string)]
 	job.User = dict["User"].(string)
 	job.Minions = stringSlice(dict["Minions"].([]interface{}))
 	job.Returns = dict["Result"].(map[string]interface{})
 	job.Arguments, job.KWArguments = parseArgs(dict["Arguments"].([]interface{}))
+
+	targetType := targetTypes[dict["Target-type"].(string)]
+	if targetType == List {
+		job.Target = &ListTarget{
+			Targets: stringSlice(dict["Target"].([]interface{})),
+		}
+	} else {
+		job.Target = &ExpressionTarget{
+			Expression: dict["Target"].(string),
+			Type:       targetType,
+		}
+	}
 
 	return &job, nil
 }
@@ -102,14 +111,23 @@ func (c *Client) Jobs() ([]Job, error) {
 		}
 
 		job := Job{
-			ID:         k,
-			Function:   j["Function"].(string),
-			StartTime:  startTime,
-			Target:     j["Target"].(string),
-			TargetType: targetTypes[j["Target-type"].(string)],
-			User:       j["User"].(string),
+			ID:        k,
+			Function:  j["Function"].(string),
+			StartTime: startTime,
+			User:      j["User"].(string),
 		}
 
+		targetType := targetTypes[j["Target-type"].(string)]
+		if targetType == List {
+			job.Target = &ListTarget{
+				Targets: stringSlice(j["Target"].([]interface{})),
+			}
+		} else {
+			job.Target = &ExpressionTarget{
+				Expression: j["Target"].(string),
+				Type:       targetType,
+			}
+		}
 		job.Arguments, job.KWArguments = parseArgs(j["Arguments"].([]interface{}))
 
 		jobs[i] = job
