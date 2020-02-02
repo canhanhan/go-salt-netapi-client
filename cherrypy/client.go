@@ -69,6 +69,10 @@ func (c *Client) request(method string, endpoint string, accept string, data int
 		return nil, err
 	}
 
+	if len(jsonData) == 4 && jsonData[0] == 110 && jsonData[1] == 117 && jsonData[2] == 108 && jsonData[3] == 108 {
+		jsonData = []byte{}
+	}
+
 	log.Printf("[DEBUG] Sending request %s to %s", jsonData, url)
 	req, err := http.NewRequest(method, url, bytes.NewBuffer(jsonData))
 	if err != nil {
