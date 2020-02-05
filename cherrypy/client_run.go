@@ -69,8 +69,8 @@ func (c *Client) RunCommands(ctx context.Context, cmds []Command) ([]interface{}
 		d := make(map[string]interface{})
 		
 		if v.Arguments != nil {
-			for k, v := range v.Arguments {
-				d[k] = v
+			for k, a := range v.Arguments {
+				d[k] = a
 			}
 		}
 
