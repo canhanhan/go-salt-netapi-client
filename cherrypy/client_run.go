@@ -46,7 +46,7 @@ type runRequest struct {
 	Username   string                 `json:"username,omitempty"`
 	Password   string                 `json:"password,omitempty"`
 	Backend    string                 `json:"eauth,omitempty"`
-	Args       []string               `json:"args,omitempty"`
+	Args       []string               `json:"arg,omitempty"`
 	KWArgs     map[string]interface{} `json:"kwarg,omitempty"`
 	FullReturn bool                   `json:"full_return,omitempty"`
 }

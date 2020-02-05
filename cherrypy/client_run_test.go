@@ -63,3 +63,8 @@ func TestRunWheelCommand(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, res)
 }
+
+// TODO: Add runner test
+// TODO: Add test with arguments
+// TODO: Add test with kw arguments
+// TODO: Add tests with 401
