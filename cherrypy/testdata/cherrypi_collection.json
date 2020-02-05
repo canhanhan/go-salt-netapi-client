@@ -2245,86 +2245,6 @@
 					"body": "{\n    \"return\": [\n        {\n            \"tag\": \"salt/wheel/20200202224725441938\",\n            \"data\": {\n                \"jid\": \"20200202224725441938\",\n                \"return\": [\n                    \"minion1\"\n                ],\n                \"success\": true,\n                \"_stamp\": \"2020-02-02T22:47:25.490631\",\n                \"tag\": \"salt/wheel/20200202224725441938\",\n                \"user\": \"test_user\",\n                \"fun\": \"wheel.minions.connected\"\n            }\n        }\n    ]\n}"
 				},
 				{
-					"name": "local_success",
-					"originalRequest": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "X-Auth-Token",
-								"value": "{{TOKEN}}",
-								"type": "text"
-							},
-							{
-								"key": "Content-Type",
-								"name": "Content-Type",
-								"value": "application/json",
-								"type": "text"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "[\n\t{\n\t\t\"client\": \"local\",\n\t\t\"tgt\": \"minion1\",\n\t\t\"tgt_type\": \"glob\",\n\t\t\"fun\": \"test.ping\",\n\t\t\"username\": \"test_user\",\n\t\t\"password\": \"test_pwd\",\n\t\t\"eauth\": \"pam\"\n\t}\n]",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{URL}}/run",
-							"host": [
-								"{{URL}}"
-							],
-							"path": [
-								"run"
-							]
-						}
-					},
-					"status": "OK",
-					"code": 200,
-					"_postman_previewlanguage": "json",
-					"header": [
-						{
-							"key": "Content-Length",
-							"value": "31"
-						},
-						{
-							"key": "Access-Control-Expose-Headers",
-							"value": "GET, POST"
-						},
-						{
-							"key": "Vary",
-							"value": "Accept-Encoding"
-						},
-						{
-							"key": "Server",
-							"value": "CherryPy/8.9.1"
-						},
-						{
-							"key": "Allow",
-							"value": "GET, HEAD, POST"
-						},
-						{
-							"key": "Access-Control-Allow-Credentials",
-							"value": "true"
-						},
-						{
-							"key": "Date",
-							"value": "Sun, 02 Feb 2020 22:42:19 GMT"
-						},
-						{
-							"key": "Access-Control-Allow-Origin",
-							"value": "*"
-						},
-						{
-							"key": "Content-Type",
-							"value": "application/json"
-						}
-					],
-					"cookie": [],
-					"body": "{\n    \"return\": [\n        {\n            \"minion1\": true\n        }\n    ]\n}"
-				},
-				{
 					"name": "local_multiple_success",
 					"originalRequest": {
 						"method": "POST",
@@ -2343,7 +2263,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "[\n\t{\n\t\t\"client\": \"local\",\n\t\t\"tgt\": \"minion1\",\n\t\t\"tgt_type\": \"glob\",\n\t\t\"fun\": \"test.ping\",\n\t\t\"username\": \"test_user\",\n\t\t\"password\": \"test_pwd\",\n\t\t\"eauth\": \"pam\"\n\t}, \t{\n\t\t\"client\": \"local\",\n\t\t\"tgt\": \"minion1\",\n\t\t\"tgt_type\": \"glob\",\n\t\t\"fun\": \"test.ping\",\n\t\t\"username\": \"test_user\",\n\t\t\"password\": \"test_pwd\",\n\t\t\"eauth\": \"pam\"\n\t}\n]",
+							"raw": "[\n\t{\n\t\t\"client\": \"local\",\n\t\t\"tgt\": \"minion1\",\n\t\t\"tgt_type\": \"glob\",\n\t\t\"fun\": \"test.ping\",\n\t\t\"username\": \"test_user\",\n\t\t\"password\": \"test_pwd\",\n\t\t\"eauth\": \"pam\",\n\t\t\"full_return\": true\n\t}, \t{\n\t\t\"client\": \"local\",\n\t\t\"tgt\": \"minion1\",\n\t\t\"tgt_type\": \"glob\",\n\t\t\"fun\": \"test.ping\",\n\t\t\"username\": \"test_user\",\n\t\t\"password\": \"test_pwd\",\n\t\t\"eauth\": \"pam\",\n\t\t\"full_return\": true\n\t}\n]",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -2366,7 +2286,7 @@
 					"header": [
 						{
 							"key": "Content-Length",
-							"value": "50"
+							"value": "158"
 						},
 						{
 							"key": "Access-Control-Expose-Headers",
@@ -2390,7 +2310,7 @@
 						},
 						{
 							"key": "Date",
-							"value": "Sun, 02 Feb 2020 22:44:04 GMT"
+							"value": "Wed, 05 Feb 2020 19:39:40 GMT"
 						},
 						{
 							"key": "Access-Control-Allow-Origin",
@@ -2402,7 +2322,87 @@
 						}
 					],
 					"cookie": [],
-					"body": "{\n    \"return\": [\n        {\n            \"minion1\": true\n        },\n        {\n            \"minion1\": true\n        }\n    ]\n}"
+					"body": "{\n    \"return\": [\n        {\n            \"minion1\": {\n                \"jid\": \"20200205193940894444\",\n                \"retcode\": 0,\n                \"ret\": true\n            }\n        },\n        {\n            \"minion1\": {\n                \"jid\": \"20200205193941319143\",\n                \"retcode\": 0,\n                \"ret\": true\n            }\n        }\n    ]\n}"
+				},
+				{
+					"name": "local_success",
+					"originalRequest": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-Auth-Token",
+								"value": "{{TOKEN}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "[\n\t{\n\t\t\"client\": \"local\",\n\t\t\"tgt\": \"minion1\",\n\t\t\"tgt_type\": \"glob\",\n\t\t\"fun\": \"test.ping\",\n\t\t\"username\": \"test_user\",\n\t\t\"password\": \"test_pwd\",\n\t\t\"eauth\": \"pam\",\n\t\t\"full_return\": true\n\t}\n]",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{URL}}/run",
+							"host": [
+								"{{URL}}"
+							],
+							"path": [
+								"run"
+							]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "Content-Length",
+							"value": "85"
+						},
+						{
+							"key": "Access-Control-Expose-Headers",
+							"value": "GET, POST"
+						},
+						{
+							"key": "Vary",
+							"value": "Accept-Encoding"
+						},
+						{
+							"key": "Server",
+							"value": "CherryPy/8.9.1"
+						},
+						{
+							"key": "Allow",
+							"value": "GET, HEAD, POST"
+						},
+						{
+							"key": "Access-Control-Allow-Credentials",
+							"value": "true"
+						},
+						{
+							"key": "Date",
+							"value": "Wed, 05 Feb 2020 19:37:02 GMT"
+						},
+						{
+							"key": "Access-Control-Allow-Origin",
+							"value": "*"
+						},
+						{
+							"key": "Content-Type",
+							"value": "application/json"
+						}
+					],
+					"cookie": [],
+					"body": "{\n    \"return\": [\n        {\n            \"minion1\": {\n                \"jid\": \"20200205193702331160\",\n                \"retcode\": 0,\n                \"ret\": true\n            }\n        }\n    ]\n}"
 				}
 			]
 		},
@@ -2528,19 +2528,19 @@
 	],
 	"variable": [
 		{
-			"id": "46f4b265-675d-4a67-83e9-39b5c32bb01d",
+			"id": "e494edd8-34c1-4491-84fb-91fc8a425fba",
 			"key": "URL",
 			"value": "http://192.168.50.10:8000",
 			"type": "string"
 		},
 		{
-			"id": "50c4d6ae-4879-47bc-b8fd-82c28ad54181",
+			"id": "12788343-87c5-4cdc-9061-8ea2871d25f2",
 			"key": "TOKEN",
 			"value": "163588fd62e0166d48196be8dbfec35287931f10",
 			"type": "string"
 		},
 		{
-			"id": "f7b50f4f-ff1f-4713-9b00-a9c520a8b0ba",
+			"id": "a89ab059-9dca-412d-bb65-2643ab0aa636",
 			"key": "JOBID",
 			"value": "20200202210231414902",
 			"type": "string"

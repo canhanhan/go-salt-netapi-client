@@ -134,6 +134,12 @@ func (c *Client) do(req *http.Request, v interface{}) (*http.Response, error) {
 	}
 
 	defer resp.Body.Close()
+	
+	log.Printf("[DEBUG] Received response %s from %s", resp.Status, resp.Request.URL)
+	if resp.StatusCode > 299 || resp.StatusCode < 200 {
+		return nil, fmt.Errorf("HTTP Request failed: %s", resp.Status)
+	}
+	
 	if v != nil {
 		if w, ok := v.(io.Writer); ok {
 			io.Copy(w, resp.Body)
@@ -143,11 +149,6 @@ func (c *Client) do(req *http.Request, v interface{}) (*http.Response, error) {
 				return nil, err
 			}
 		}
-	}
-
-	log.Printf("[DEBUG] Received response %s from %s", resp.Status, resp.Request.URL)
-	if resp.StatusCode > 299 || resp.StatusCode < 200 {
-		return nil, fmt.Errorf("HTTP Request failed: %s", resp.Status)
 	}
 
 	return resp, nil

@@ -33,22 +33,7 @@ type Command struct {
 	Client     CommandClient
 	Target     Target
 	Function   string
-	Args       []string
-	Kwargs     map[string]interface{}
-	FullReturn bool
-}
-
-type runRequest struct {
-	Client     CommandClient          `json:"client,omitempty"`
-	Target     interface{}            `json:"tgt,omitempty"`
-	TargetType TargetType             `json:"tgt_type,omitempty"`
-	Function   string                 `json:"fun,omitempty"`
-	Username   string                 `json:"username,omitempty"`
-	Password   string                 `json:"password,omitempty"`
-	Backend    string                 `json:"eauth,omitempty"`
-	Args       []string               `json:"arg,omitempty"`
-	KWArgs     map[string]interface{} `json:"kwarg,omitempty"`
-	FullReturn bool                   `json:"full_return,omitempty"`
+	Arguments  map[string]interface{}
 }
 
 type runResponse struct {
@@ -79,37 +64,30 @@ RunJobs runs multiple commands on master using Run endpoint
 https://docs.saltstack.com/en/latest/ref/netapi/all/salt.netapi.rest_cherrypy.html#salt.netapi.rest_cherrypy.app.Run
 */
 func (c *Client) RunJobs(ctx context.Context, cmds []Command) ([]interface{}, error) {
-	d := make([]runRequest, len(cmds))
+	r := make([]map[string]interface{}, len(cmds))
 	for i, v := range cmds {
-		j := runRequest{
-			Args:     v.Args,
-			KWArgs:   v.Kwargs,
-			Client:   v.Client,
-			Function: v.Function,
-			Username: c.eauth.Username,
-			Password: c.eauth.Password,
-			Backend:  c.eauth.Backend,
-		}
+		d := make(map[string]interface{})
+		d["client"] = v.Client
+		d["fun"] = v.Function
+		d["username"] = c.eauth.Username
+		d["password"] = c.eauth.Password
+		d["eauth"] = c.eauth.Backend
 
 		if v.Target != nil {
-			j.Target = v.Target.GetTarget()
-			j.TargetType = v.Target.GetType()
+			d["tgt"] = v.Target.GetTarget()
+			d["tgt_type"] = v.Target.GetType()
 		}
 
 		// wheel throws following error if full_return is sent as a seperate argument
 		// TypeError: call_func() got multiple values for keyword argument 'full_return'
-		if j.Client == WheelClient && j.FullReturn {
-			if j.KWArgs == nil {
-				j.KWArgs = make(map[string]interface{})
-			}
-			j.KWArgs["full_return"] = j.FullReturn
-			j.FullReturn = false
+		if v.Client != WheelClient {
+			d["full_return"] = true
 		}
 
-		d[i] = j
+		r[i] = d
 	}
 
-	req, err := c.newRequest(ctx, "POST", "run", d)
+	req, err := c.newRequest(ctx, "POST", "run", r)
 	if err != nil {
 		return nil, err
 	}
