@@ -29,7 +29,7 @@ func setup(t *testing.T) (*apiTester.Tester, *Client) {
 		t.Fatal(err)
 	}
 
-	client := NewClient(tester.URL, testUsername, testPassword, testEAuth)
+	client := NewClient(tester.URL, testUsername, testPassword, testEAuth, false)
 	client.Token = testToken
 
 	return tester, client

@@ -9,49 +9,25 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
-	"strconv"
-	"strings"
-	"time"
 )
+
+type RequestError struct {
+	StatusCode int
+	Status     string
+	Body       []byte
+}
+
+func (e *RequestError) Error() string {
+	return fmt.Sprintf("HTTP request failed: %s", e.Status)
+}
 
 type eauth struct {
 	Username string
 	Password string
 	Backend  string
-}
-
-type saltUnixTime struct {
-	time.Time
-}
-
-func (t *saltUnixTime) UnmarshalJSON(input []byte) error {
-	s, err := strconv.ParseFloat(string(input), 64)
-	if err != nil {
-		return err
-	}
-
-	m := int64(s)
-	n := int64((s - float64(m)) * 1000000000)
-	t.Time = time.Unix(m, n)
-	return nil
-}
-
-type saltTime struct {
-	time.Time
-}
-
-func (t *saltTime) UnmarshalJSON(input []byte) error {
-	s := string(input)
-	s = strings.Trim(s, "\"")
-	v, err := time.Parse("2006, Jan 02 15:04:05.000000", s)
-	if err != nil {
-		return err
-	}
-
-	t.Time = v
-	return nil
 }
 
 /*
@@ -78,7 +54,7 @@ NewClient creates a new instance of client
   address: URL of the cherrypy instance on a master (e.g.: https://salt-master:8000)
   backend: External authentication (eauth) backend (https://docs.saltstack.com/en/latest/topics/eauth/index.html)
 */
-func NewClient(address string, username string, password string, backend string) *Client {
+func NewClient(address string, username string, password string, backend string, skipVerify bool) *Client {
 	a := eauth{
 		Username: username,
 		Password: password,
@@ -87,7 +63,7 @@ func NewClient(address string, username string, password string, backend string)
 
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: true,
+			InsecureSkipVerify: skipVerify,
 		},
 	}
 
@@ -134,12 +110,19 @@ func (c *Client) do(req *http.Request, v interface{}) (*http.Response, error) {
 	}
 
 	defer resp.Body.Close()
-	
+
 	log.Printf("[DEBUG] Received response %s from %s", resp.Status, resp.Request.URL)
 	if resp.StatusCode > 299 || resp.StatusCode < 200 {
-		return nil, fmt.Errorf("HTTP Request failed: %s", resp.Status)
+		// Not checking for error as it does not matter
+		body, _ := ioutil.ReadAll(resp.Body)
+
+		return nil, &RequestError{
+			Status:     resp.Status,
+			StatusCode: resp.StatusCode,
+			Body:       body,
+		}
 	}
-	
+
 	if v != nil {
 		if w, ok := v.(io.Writer); ok {
 			io.Copy(w, resp.Body)

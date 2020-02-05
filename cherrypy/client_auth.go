@@ -7,6 +7,10 @@ import (
 )
 
 var (
+	// ErrorInvalidCredentials indicates authentication failed with 401 error.
+	// Username, password or backend might be invalid.
+	ErrorInvalidCredentials = errors.New("invalid credentials or authentication backend: %s")
+
 	// ErrorNotAuthenticated indicates Logout() was called before authenticating with Salt
 	ErrorNotAuthenticated = errors.New("not authenticated")
 )
@@ -52,6 +56,12 @@ func (c *Client) Login(ctx context.Context) error {
 	var response loginResponse
 	_, err = c.do(req, &response)
 	if err != nil {
+		if rerr, ok := err.(*RequestError); ok {
+			if rerr.StatusCode == 401 {
+				return ErrorInvalidCredentials
+			}
+		}
+
 		return err
 	}
 
