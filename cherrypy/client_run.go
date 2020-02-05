@@ -67,6 +67,13 @@ func (c *Client) RunCommands(ctx context.Context, cmds []Command) ([]interface{}
 	r := make([]map[string]interface{}, len(cmds))
 	for i, v := range cmds {
 		d := make(map[string]interface{})
+		
+		if v.Arguments != nil {
+			for k, v := range v.Arguments {
+				d[k] = v
+			}
+		}
+
 		d["client"] = v.Client
 		d["fun"] = v.Function
 		d["username"] = c.eauth.Username
@@ -83,7 +90,7 @@ func (c *Client) RunCommands(ctx context.Context, cmds []Command) ([]interface{}
 		if v.Client != WheelClient {
 			d["full_return"] = true
 		}
-
+		
 		r[i] = d
 	}
 
