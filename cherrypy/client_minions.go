@@ -1,8 +1,11 @@
 package cherrypy
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 )
 
 var (
@@ -18,17 +21,32 @@ type Minion struct {
 
 // MinionJob contains job information to be sent to the minion
 type MinionJob struct {
-	Target     string
-	TargetType TargetType
-	Function   string
-	Args       []interface{}
-	KWArgs     map[string]interface{}
+	Target      Target
+	Function    string
+	Arguments   []interface{}
+	KWArguments map[string]interface{}
 }
 
 // AsyncMinionJobResult contains results of an async run with local client.
 type AsyncMinionJobResult struct {
-	Minions []string
-	JobID   string
+	ID      string   `json:"jid"`
+	Minions []string `json:"minions"`
+}
+
+type submitMinionJob struct {
+	Target      interface{}            `json:"tgt"`
+	TargetType  TargetType             `json:"tgt_type"`
+	Function    string                 `json:"fun"`
+	Arguments   []interface{}          `json:"args,omitempty"`
+	KWArguments map[string]interface{} `json:"kwargs,omitempty"`
+}
+
+type submitMinionJobResponse struct {
+	Return []AsyncMinionJobResult `json:"return"`
+}
+
+type minionDetailResponse struct {
+	Return []map[string]json.RawMessage `json:"return"`
 }
 
 /*
@@ -39,8 +57,8 @@ If the requested minion is not known by the master; ErrorMinionNotFound error wi
 
 https://docs.saltstack.com/en/latest/ref/netapi/all/salt.netapi.rest_cherrypy.html#get--minions-(mid)
 */
-func (c *Client) Minion(id string) (*Minion, error) {
-	minions, err := c.getMinions(id)
+func (c *Client) Minion(ctx context.Context, id string) (*Minion, error) {
+	minions, err := c.getMinions(ctx, id)
 
 	if err != nil {
 		return nil, err
@@ -60,8 +78,8 @@ Grains will be empty for offline minions.
 
 https://docs.saltstack.com/en/latest/ref/netapi/all/salt.netapi.rest_cherrypy.html#get--minions-(mid)
 */
-func (c *Client) Minions() ([]Minion, error) {
-	return c.getMinions("")
+func (c *Client) Minions(ctx context.Context) ([]Minion, error) {
+	return c.getMinions(ctx, "")
 }
 
 /*
@@ -69,40 +87,31 @@ SubmitJobs submits multiple jobs to be executed on minions asynchronously
 
 https://docs.saltstack.com/en/latest/ref/netapi/all/salt.netapi.rest_cherrypy.html#salt.netapi.rest_cherrypy.app.Minions.POST
 */
-func (c *Client) SubmitJobs(jobs []MinionJob) ([]AsyncMinionJobResult, error) {
-	data := make([]interface{}, len(jobs))
+func (c *Client) SubmitJobs(ctx context.Context, jobs []MinionJob) ([]AsyncMinionJobResult, error) {
+	data := make([]submitMinionJob, len(jobs))
 	for i, v := range jobs {
-		job := make(map[string]interface{})
-		job["tgt"] = v.Target
-		job["tgt_type"] = v.TargetType
-		job["fun"] = v.Function
-		job["args"] = v.Args
-		job["kwargs"] = v.KWArgs
-
-		data[i] = job
+		data[i] = submitMinionJob{
+			Target:      v.Target.GetTarget(),
+			TargetType:  v.Target.GetType(),
+			Function:    v.Function,
+			Arguments:   v.Arguments,
+			KWArguments: v.KWArguments,
+		}
 	}
 
-	res, err := c.requestJSON("POST", "minions", data)
+	req, err := c.newRequest(ctx, "POST", "minions", data)
 	if err != nil {
 		return nil, err
 	}
 
-	rawResults := res["return"].([]interface{})
-	results := make([]AsyncMinionJobResult, 0)
-	for _, v := range rawResults {
-		dict := v.(map[string]interface{})
-		// If target did not match to any minions Salt returns empty object. Skip...
-		if len(dict) == 0 {
-			continue
-		}
-
-		results = append(results, AsyncMinionJobResult{
-			Minions: stringSlice(dict["minions"].([]interface{})),
-			JobID:   dict["jid"].(string),
-		})
+	log.Println("[DEBUG] Sending submit minion job request")
+	var resp submitMinionJobResponse
+	_, err = c.do(req, &resp)
+	if err != nil {
+		return nil, err
 	}
 
-	return results, nil
+	return resp.Return, nil
 }
 
 /*
@@ -110,8 +119,8 @@ SubmitJob submits a single job to be executed on minions asynchronously
 
 https://docs.saltstack.com/en/latest/ref/netapi/all/salt.netapi.rest_cherrypy.html#salt.netapi.rest_cherrypy.app.Minions.POST
 */
-func (c *Client) SubmitJob(job MinionJob) (*AsyncMinionJobResult, error) {
-	res, err := c.SubmitJobs([]MinionJob{job})
+func (c *Client) SubmitJob(ctx context.Context, job MinionJob) (*AsyncMinionJobResult, error) {
+	res, err := c.SubmitJobs(ctx, []MinionJob{job})
 	if err != nil {
 		return nil, err
 	}
@@ -123,26 +132,33 @@ func (c *Client) SubmitJob(job MinionJob) (*AsyncMinionJobResult, error) {
 	return &res[0], nil
 }
 
-func (c *Client) getMinions(id string) ([]Minion, error) {
-	res, err := c.requestJSON("GET", "minions/"+id, nil)
+func (c *Client) getMinions(ctx context.Context, id string) ([]Minion, error) {
+	req, err := c.newRequest(ctx, "GET", "minions/"+id, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	r := res["return"].([]interface{})
-	if len(r) != 1 {
-		return nil, fmt.Errorf("expected one return but received %d", len(r))
+	log.Println("[DEBUG] Sending minion details request")
+	var resp minionDetailResponse
+	_, err = c.do(req, &resp)
+	if err != nil {
+		return nil, err
 	}
 
-	dict := r[0].(map[string]interface{})
-	minions := make([]Minion, len(dict))
+	if len(resp.Return) != 1 {
+		return nil, fmt.Errorf("expected one return but received %d", len(resp.Return))
+	}
+
+	d := resp.Return[0]
+	minions := make([]Minion, len(d))
 
 	i := 0
-	for k, m := range dict {
+	for k, m := range d {
 		minions[i] = Minion{ID: k}
 
 		// Grains are not returned for offline minions
-		if g, ok := m.(map[string]interface{}); ok {
+		var g map[string]interface{}
+		if json.Unmarshal(m, &g) == nil {
 			minions[i].Grains = g
 		}
 

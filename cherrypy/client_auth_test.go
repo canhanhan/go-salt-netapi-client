@@ -1,45 +1,47 @@
 package cherrypy
 
 import (
-	"github.com/stretchr/testify/assert"
-	"net/http"
+	"context"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestValidLogin(t *testing.T) {
-	c, mux, teardown := setup(t)
-	defer teardown()
-	handleJSONRequest(mux, "/login", "auth_login_success")
+	tester, c := setup(t)
+	defer tester.Close()
+	tester.Setup(t, "auth_login", "success")
 
-	err := c.Login()
+	c.Token = ""
+	err := c.Login(context.Background())
 
 	assert.NoError(t, err)
 	assert.Equal(t, testToken, c.Token)
 }
 
 func TestInvalidLogin(t *testing.T) {
-	c, mux, teardown := setup(t)
-	defer teardown()
-	mux.HandleFunc("/login", func(w http.ResponseWriter, req *http.Request) {
-		http.Error(w, "Some error", 401)
-	})
+	tester, c := setup(t)
+	defer tester.Close()
+	tester.Setup(t, "auth_login", "bad_user")
 
-	err := c.Login()
+	c.Token = ""
+	err := c.Login(context.Background())
 
 	assert.Error(t, err)
 	assert.Equal(t, "", c.Token)
 }
 
 func TestLogout(t *testing.T) {
-	c, mux, teardown := setup(t)
-	defer teardown()
-	handleJSONRequest(mux, "/login", "auth_login_success")
-	handleJSONRequest(mux, "/logout", "auth_logout_success")
-	if err := c.Login(); err != nil {
+	tester, c := setup(t)
+	defer tester.Close()
+	tester.Setup(t, "auth_login", "success")
+	tester.Setup(t, "auth_logout", "success")
+
+	err := c.Login(context.Background())
+	if err != nil {
 		t.Fatal(err)
 	}
-
-	err := c.Logout()
+	err = c.Logout(context.Background())
 
 	assert.NoError(t, err)
 	assert.Empty(t, c.Token)

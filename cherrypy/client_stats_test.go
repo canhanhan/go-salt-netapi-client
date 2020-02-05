@@ -1,16 +1,18 @@
 package cherrypy
 
 import (
-	"github.com/stretchr/testify/assert"
+	"context"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestStatsSuccess(t *testing.T) {
-	c, mux, teardown := setup(t)
-	defer teardown()
-	handleJSONRequest(mux, "/stats", "stats_success")
+	tester, c := setup(t)
+	defer tester.Close()
+	tester.Setup(t, "stats", "success")
 
-	res, err := c.Stats()
+	res, err := c.Stats(context.Background())
 
 	assert.NoError(t, err)
 	assert.NotEmpty(t, res)

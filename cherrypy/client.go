@@ -4,18 +4,54 @@ package cherrypy
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
+	"strconv"
+	"strings"
+	"time"
 )
 
 type eauth struct {
 	Username string
 	Password string
 	Backend  string
+}
+
+type saltUnixTime struct {
+	time.Time
+}
+
+func (t *saltUnixTime) UnmarshalJSON(input []byte) error {
+	s, err := strconv.ParseFloat(string(input), 64)
+	if err != nil {
+		return err
+	}
+
+	m := int64(s)
+	n := int64((s - float64(m)) * 1000000000)
+	t.Time = time.Unix(m, n)
+	return nil
+}
+
+type saltTime struct {
+	time.Time
+}
+
+func (t *saltTime) UnmarshalJSON(input []byte) error {
+	s := string(input)
+	s = strings.Trim(s, "\"")
+	v, err := time.Parse("2006, Jan 02 15:04:05.000000", s)
+	if err != nil {
+		return err
+	}
+
+	t.Time = v
+	return nil
 }
 
 /*
@@ -62,58 +98,57 @@ func NewClient(address string, username string, password string, backend string)
 	}
 }
 
-func (c *Client) request(method string, endpoint string, accept string, data interface{}) ([]byte, error) {
+func (c *Client) newRequest(ctx context.Context, method string, endpoint string, body interface{}) (*http.Request, error) {
 	url := fmt.Sprintf("%s/%s", c.Address, endpoint)
-	jsonData, err := json.Marshal(data)
+
+	var buf io.ReadWriter
+	if body != nil {
+		buf = &bytes.Buffer{}
+		enc := json.NewEncoder(buf)
+		enc.SetEscapeHTML(false)
+		err := enc.Encode(body)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	log.Printf("[DEBUG] Creating request for %s", url)
+	req, err := http.NewRequestWithContext(ctx, method, url, buf)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(jsonData) == 4 && jsonData[0] == 110 && jsonData[1] == 117 && jsonData[2] == 108 && jsonData[3] == 108 {
-		jsonData = []byte{}
-	}
-
-	log.Printf("[DEBUG] Sending request %s to %s", jsonData, url)
-	req, err := http.NewRequest(method, url, bytes.NewBuffer(jsonData))
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Set("Accept", accept)
+	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Content-Type", "application/json")
 	if c.Token != "" {
 		req.Header.Set("X-Auth-Token", c.Token)
 	}
 
+	return req, nil
+}
+
+func (c *Client) do(req *http.Request, v interface{}) (*http.Response, error) {
 	resp, err := c.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
 
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
+	if v != nil {
+		if w, ok := v.(io.Writer); ok {
+			io.Copy(w, resp.Body)
+		} else {
+			err = json.NewDecoder(resp.Body).Decode(v)
+			if err != nil && err != io.EOF {
+				return nil, err
+			}
+		}
 	}
 
-	log.Printf("[DEBUG] Received response (%d) %s from %s", resp.StatusCode, body, url)
+	log.Printf("[DEBUG] Received response %s from %s", resp.Status, resp.Request.URL)
 	if resp.StatusCode > 299 || resp.StatusCode < 200 {
-		return nil, fmt.Errorf("HTTP Request failed: %s.\n%s", resp.Status, body)
+		return nil, fmt.Errorf("HTTP Request failed: %s", resp.Status)
 	}
 
-	return body, nil
-}
-
-func (c *Client) requestJSON(method string, endpoint string, data interface{}) (map[string]interface{}, error) {
-	body, err := c.request(method, endpoint, "application/json", data)
-	if err != nil {
-		return nil, err
-	}
-
-	result := make(map[string]interface{})
-	if err := json.Unmarshal(body, &result); err != nil {
-		return nil, err
-	}
-
-	return result, nil
+	return resp, nil
 }

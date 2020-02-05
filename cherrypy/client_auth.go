@@ -1,6 +1,7 @@
 package cherrypy
 
 import (
+	"context"
 	"errors"
 	"log"
 )
@@ -10,27 +11,51 @@ var (
 	ErrorNotAuthenticated = errors.New("not authenticated")
 )
 
+type loginRequest struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+	Backend  string `json:"eauth"`
+}
+
+type loginData struct {
+	// TODO: Not sure about the data structure of permissions
+	//	Permissions []string `json:"perms"`
+	StartTime  saltUnixTime `json:"start"`
+	Token      string       `json:"token"`
+	ExpireTime saltUnixTime `json:"expire"`
+	User       string       `json:"user"`
+	Backend    string       `json:"eauth"`
+}
+
+type loginResponse struct {
+	Return []loginData `json:"return"`
+}
+
 /*
 Login establishes a session with rest_cherrypy and retrieves the token
 
 https://docs.saltstack.com/en/latest/ref/netapi/all/salt.netapi.rest_cherrypy.html#login
 */
-func (c *Client) Login() error {
-	data := make(map[string]interface{})
-	data["username"] = c.eauth.Username
-	data["password"] = c.eauth.Password
-	data["eauth"] = c.eauth.Backend
+func (c *Client) Login(ctx context.Context) error {
+	data := loginRequest{
+		Username: c.eauth.Username,
+		Password: c.eauth.Password,
+		Backend:  c.eauth.Backend,
+	}
 
-	log.Println("[DEBUG] Sending authentication request")
-	result, err := c.requestJSON("POST", "login", data)
+	req, err := c.newRequest(ctx, "POST", "login", data)
 	if err != nil {
 		return err
 	}
 
-	records := result["return"].([]interface{})
-	record := records[0].(map[string]interface{})
-	c.Token = record["token"].(string)
+	log.Println("[DEBUG] Sending authentication request")
+	var response loginResponse
+	_, err = c.do(req, &response)
+	if err != nil {
+		return err
+	}
 
+	c.Token = response.Return[0].Token
 	log.Printf("[DEBUG] Received token %s", c.Token)
 
 	return nil
@@ -43,13 +68,19 @@ Calls to logout will fail with ErrorNotAuthenticated if Login() was not called p
 
 https://docs.saltstack.com/en/latest/ref/netapi/all/salt.netapi.rest_cherrypy.html#logout
 */
-func (c *Client) Logout() error {
+func (c *Client) Logout(ctx context.Context) error {
 	if c.Token == "" {
 		return ErrorNotAuthenticated
 	}
 
+	req, err := c.newRequest(ctx, "POST", "logout", nil)
+	if err != nil {
+		return err
+	}
+
 	log.Println("[DEBUG] Sending logout request")
-	if _, err := c.requestJSON("POST", "logout", nil); err != nil {
+	_, err = c.do(req, nil)
+	if err != nil {
 		return err
 	}
 

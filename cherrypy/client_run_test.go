@@ -1,65 +1,64 @@
 package cherrypy
 
 import (
-	"github.com/stretchr/testify/assert"
+	"context"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestRunLocalCommand(t *testing.T) {
-	c, mux, teardown := setup(t)
-	defer teardown()
-	handleJSONRequest(mux, "/run", "run_local_success")
+	tester, c := setup(t)
+	defer tester.Close()
+	tester.Setup(t, "run", "local_success")
 
 	cmd := Command{
-		Client:     "local",
-		Target:     "minion1",
-		TargetType: Glob,
-		Function:   "test.ping",
+		Client:   "local",
+		Target:   ExpressionTarget{Expression: "minion1", Type: Glob},
+		Function: "test.ping",
 	}
 
-	res, err := c.RunJob(cmd)
+	res, err := c.RunJob(context.Background(), cmd)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, res)
 }
 
 func TestRunLocalCommands(t *testing.T) {
-	c, mux, teardown := setup(t)
-	defer teardown()
-	handleJSONRequest(mux, "/run", "run_local_multiple_success")
+	tester, c := setup(t)
+	defer tester.Close()
+	tester.Setup(t, "run", "local_multiple_success")
 
 	cmds := []Command{
 		Command{
-			Client:     "local",
-			Target:     "minion1",
-			TargetType: Glob,
-			Function:   "test.ping",
+			Client:   "local",
+			Target:   ExpressionTarget{Expression: "minion1", Type: Glob},
+			Function: "test.ping",
 		},
 		Command{
-			Client:     "local",
-			Target:     "minion1",
-			TargetType: Glob,
-			Function:   "test.ping",
+			Client:   "local",
+			Target:   ExpressionTarget{Expression: "minion1", Type: Glob},
+			Function: "test.ping",
 		},
 	}
 
-	res, err := c.RunJobs(cmds)
+	res, err := c.RunJobs(context.Background(), cmds)
 
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(res))
 }
 
 func TestRunWheelCommand(t *testing.T) {
-	c, mux, teardown := setup(t)
-	defer teardown()
-	handleJSONRequest(mux, "/run", "run_wheel_success")
+	tester, c := setup(t)
+	defer tester.Close()
+	tester.Setup(t, "run", "wheel_success")
 
 	cmd := Command{
 		Client:   "wheel",
 		Function: "minions.connected",
 	}
 
-	res, err := c.RunJob(cmd)
+	res, err := c.RunJob(context.Background(), cmd)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, res)

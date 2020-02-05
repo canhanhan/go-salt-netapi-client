@@ -1,8 +1,9 @@
 package cherrypy
 
 import (
+	"context"
 	"errors"
-	"fmt"
+	"log"
 	"time"
 )
 
@@ -29,6 +30,33 @@ type JobDetails struct {
 	Returns map[string]interface{}
 }
 
+type jobResult struct {
+	Return     interface{} `json:"return"`
+	ReturnCode int         `json:"retcode"`
+	Success    bool        `json:"success"`
+}
+
+type jobInfo struct {
+	Function   string               `json:"Function"`
+	ID         string               `json:"jid,omitempty"`
+	Result     map[string]jobResult `json:"Result"`
+	User       string               `json:"User"`
+	Target     interface{}          `json:"Target"`
+	TargetType string               `json:"Target-type"`
+	StartTime  saltTime             `json:"StartTime"`
+	Minions    []string             `json:"Minions"`
+	Arguments  []interface{}        `json:"Arguments"`
+}
+
+type jobDetailResponse struct {
+	Info    []jobInfo                `json:"info"`
+	Returns []map[string]interface{} `json:"return"`
+}
+
+type jobListResponse struct {
+	Jobs []map[string]jobInfo `json:"return"`
+}
+
 /*
 Job retrieves details of a single job
 
@@ -36,50 +64,31 @@ If the job was not found; ErrorJobNotFound will be returned.
 
 https://docs.saltstack.com/en/latest/ref/netapi/all/salt.netapi.rest_cherrypy.html#get--jobs-(jid)
 */
-func (c *Client) Job(id string) (*JobDetails, error) {
-	res, err := c.requestJSON("GET", "jobs/"+id, nil)
+func (c *Client) Job(ctx context.Context, id string) (*JobDetails, error) {
+	req, err := c.newRequest(ctx, "GET", "jobs/"+id, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	infoBlock := res["info"].([]interface{})
-	if len(infoBlock) != 1 {
-		return nil, fmt.Errorf("expected 1 result in info block but received %d results", len(infoBlock))
-	}
-
-	dict := infoBlock[0].(map[string]interface{})
-	if _, ok := dict["jid"]; !ok {
-		return nil, fmt.Errorf("%s: %w", id, ErrorJobNotFound)
-	}
-	if v, ok := dict["Error"]; ok {
-		return nil, errors.New(v.(string))
-	}
-
-	startTime, err := parseTime(dict["StartTime"].(string))
+	log.Println("[DEBUG] Sending job details request")
+	var resp jobDetailResponse
+	_, err = c.do(req, &resp)
 	if err != nil {
 		return nil, err
 	}
 
-	job := JobDetails{}
-	job.ID = dict["jid"].(string)
-	job.Function = dict["Function"].(string)
-	job.StartTime = startTime
-	job.User = dict["User"].(string)
-	job.Minions = stringSlice(dict["Minions"].([]interface{}))
-	job.Returns = dict["Result"].(map[string]interface{})
-	job.Arguments, job.KWArguments = parseArgs(dict["Arguments"].([]interface{}))
-
-	targetType := targetTypes[dict["Target-type"].(string)]
-	if targetType == List {
-		job.Target = &ListTarget{
-			Targets: stringSlice(dict["Target"].([]interface{})),
-		}
-	} else {
-		job.Target = &ExpressionTarget{
-			Expression: dict["Target"].(string),
-			Type:       targetType,
-		}
+	j := resp.Info[0]
+	job := JobDetails{
+		Minions: j.Minions,
+		Returns: resp.Returns[0],
 	}
+
+	job.ID = j.ID
+	job.Function = j.Function
+	job.StartTime = j.StartTime.Time
+	job.User = j.User
+	job.Arguments, job.KWArguments = parseArgs(j.Arguments)
+	job.Target = parseTarget(j)
 
 	return &job, nil
 }
@@ -89,56 +98,54 @@ Jobs retrieves status of all jobs from Salt Master.
 
 https://docs.saltstack.com/en/latest/ref/netapi/all/salt.netapi.rest_cherrypy.html#get--jobs-(jid)
 */
-func (c *Client) Jobs() ([]Job, error) {
-	res, err := c.requestJSON("GET", "jobs", nil)
+func (c *Client) Jobs(ctx context.Context) ([]Job, error) {
+	req, err := c.newRequest(ctx, "GET", "jobs", nil)
 	if err != nil {
 		return nil, err
 	}
 
-	results := res["return"].([]interface{})
-	if len(results) != 1 {
-		return nil, fmt.Errorf("expected 1 result but received %d results", len(results))
+	log.Println("[DEBUG] Sending job list request")
+	var resp jobListResponse
+	_, err = c.do(req, &resp)
+	if err != nil {
+		return nil, err
 	}
 
-	dict := results[0].(map[string]interface{})
-	jobs := make([]Job, len(dict))
+	jobs := make([]Job, len(resp.Jobs[0]))
 	i := 0
-	for k, v := range dict {
-		j := v.(map[string]interface{})
-		startTime, err := parseTime(j["StartTime"].(string))
-		if err != nil {
-			return nil, err
+	for k, v := range resp.Jobs[0] {
+		args, kwArgs := parseArgs(v.Arguments)
+		target := parseTarget(v)
+
+		jobs[i] = Job{
+			ID:          k,
+			Function:    v.Function,
+			StartTime:   v.StartTime.Time,
+			User:        v.User,
+			Target:      target,
+			Arguments:   args,
+			KWArguments: kwArgs,
 		}
 
-		job := Job{
-			ID:        k,
-			Function:  j["Function"].(string),
-			StartTime: startTime,
-			User:      j["User"].(string),
-		}
-
-		targetType := targetTypes[j["Target-type"].(string)]
-		if targetType == List {
-			job.Target = &ListTarget{
-				Targets: stringSlice(j["Target"].([]interface{})),
-			}
-		} else {
-			job.Target = &ExpressionTarget{
-				Expression: j["Target"].(string),
-				Type:       targetType,
-			}
-		}
-		job.Arguments, job.KWArguments = parseArgs(j["Arguments"].([]interface{}))
-
-		jobs[i] = job
 		i++
 	}
 
 	return jobs, nil
 }
 
-func parseTime(val string) (time.Time, error) {
-	return time.Parse("2006, Jan 02 15:04:05.000000", val)
+func parseTarget(j jobInfo) Target {
+	targetType := targetTypes[j.TargetType]
+	switch targetType {
+	case List:
+		return &ListTarget{
+			Targets: stringSlice(j.Target.([]interface{})),
+		}
+	default:
+		return &ExpressionTarget{
+			Expression: j.Target.(string),
+			Type:       targetType,
+		}
+	}
 }
 
 func parseArgs(arguments []interface{}) ([]interface{}, map[string]interface{}) {

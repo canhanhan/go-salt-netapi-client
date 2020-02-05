@@ -1,29 +1,27 @@
 package cherrypy
 
 import (
-	"github.com/stretchr/testify/assert"
+	"context"
 	"testing"
 	"time"
-)
 
-const (
-	testSampleJobID = "20200120025629463543"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGetJob(t *testing.T) {
-	c, mux, teardown := setup(t)
-	defer teardown()
-	handleJSONRequest(mux, "/jobs/"+testSampleJobID, "job_get_success")
+	tester, c := setup(t)
+	defer tester.Close()
+	tester.Setup(t, "jobs_get", "success")
 
-	res, err := c.Job(testSampleJobID)
+	res, err := c.Job(context.Background(), testSampleJobID)
 
 	assert.NoError(t, err)
 	assert.Equal(t, testSampleJobID, res.ID)
 	assert.Equal(t, "cmd.run", res.Function)
-	assert.Equal(t, "*", res.Target)
-	assert.Equal(t, Glob, res.TargetType)
-	assert.Equal(t, "test_user", res.User)
-	assert.Equal(t, time.Date(2020, time.January, 20, 2, 56, 29, 463543000, time.UTC), res.StartTime)
+	assert.Equal(t, "*", res.Target.(*ExpressionTarget).Expression)
+	assert.Equal(t, Glob, res.Target.(*ExpressionTarget).Type)
+	assert.Equal(t, "sudo_vagrant", res.User)
+	assert.Equal(t, time.Date(2020, time.February, 2, 21, 2, 31, 414902000, time.UTC), res.StartTime)
 	assert.Equal(t, "minion1", res.Minions[0])
 	assert.Equal(t, "minion2", res.Minions[1])
 	assert.Equal(t, 2, len(res.KWArguments))
@@ -34,32 +32,40 @@ func TestGetJob(t *testing.T) {
 }
 
 func TestGetMissingJob(t *testing.T) {
-	c, mux, teardown := setup(t)
-	defer teardown()
-	handleJSONRequest(mux, "/jobs/SampleMissingJobId", "job_get_missing")
+	tester, c := setup(t)
+	defer tester.Close()
+	tester.Setup(t, "jobs_get", "missing")
 
-	_, err := c.Job("SampleMissingJobId")
+	_, err := c.Job(context.Background(), "SampleMissingJobId")
 
 	assert.Error(t, err)
 }
 
 func TestGetJobs(t *testing.T) {
-	c, mux, teardown := setup(t)
-	defer teardown()
-	handleJSONRequest(mux, "/jobs", "job_list_success")
+	tester, c := setup(t)
+	defer tester.Close()
+	tester.Setup(t, "jobs_list", "success")
 
-	res, err := c.Jobs()
+	res, err := c.Jobs(context.Background())
 
 	assert.NoError(t, err)
-	assert.Equal(t, 2, len(res))
-	job := res[1]
+	assert.Equal(t, 11, len(res))
+
+	var job *Job
+	for _, v := range res {
+		if v.ID == testSampleJobID {
+			job = &v
+			break
+		}
+	}
+
 	assert.NotNil(t, job)
 	assert.Equal(t, testSampleJobID, job.ID)
 	assert.Equal(t, "cmd.run", job.Function)
-	assert.Equal(t, "*", job.Target)
-	assert.Equal(t, Glob, job.TargetType)
-	assert.Equal(t, "test_user", job.User)
-	assert.Equal(t, time.Date(2020, time.January, 20, 2, 56, 29, 463543000, time.UTC), job.StartTime)
+	assert.Equal(t, "*", job.Target.(*ExpressionTarget).Expression)
+	assert.Equal(t, Glob, job.Target.(*ExpressionTarget).Type)
+	assert.Equal(t, "sudo_vagrant", job.User)
+	assert.Equal(t, time.Date(2020, time.February, 2, 21, 2, 31, 414902000, time.UTC), job.StartTime)
 	assert.Equal(t, 2, len(job.KWArguments))
 	assert.Equal(t, "testy", job.KWArguments["test"])
 	assert.Equal(t, "Can", job.KWArguments["complex_arg"].(map[string]interface{})["FIRST_NAME"])

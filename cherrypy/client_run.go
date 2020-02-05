@@ -1,6 +1,7 @@
 package cherrypy
 
 import (
+	"context"
 	"fmt"
 	"log"
 )
@@ -30,12 +31,28 @@ const (
 // Command to send to Run endpont
 type Command struct {
 	Client     CommandClient
-	Target     string
-	TargetType TargetType
+	Target     Target
 	Function   string
 	Args       []string
 	Kwargs     map[string]interface{}
 	FullReturn bool
+}
+
+type runRequest struct {
+	Client     CommandClient          `json:"client,omitempty"`
+	Target     interface{}            `json:"tgt,omitempty"`
+	TargetType TargetType             `json:"tgt_type,omitempty"`
+	Function   string                 `json:"fun,omitempty"`
+	Username   string                 `json:"username,omitempty"`
+	Password   string                 `json:"password,omitempty"`
+	Backend    string                 `json:"eauth,omitempty"`
+	Args       []string               `json:"args,omitempty"`
+	KWArgs     map[string]interface{} `json:"kwarg,omitempty"`
+	FullReturn bool                   `json:"full_return,omitempty"`
+}
+
+type runResponse struct {
+	Return []interface{} `json:"return"`
 }
 
 /*
@@ -43,8 +60,8 @@ RunJob runs a command on master using Run endpoint
 
 https://docs.saltstack.com/en/latest/ref/netapi/all/salt.netapi.rest_cherrypy.html#salt.netapi.rest_cherrypy.app.Run
 */
-func (c *Client) RunJob(cmd Command) (map[string]interface{}, error) {
-	res, err := c.RunJobs([]Command{cmd})
+func (c *Client) RunJob(ctx context.Context, cmd Command) (interface{}, error) {
+	res, err := c.RunJobs(ctx, []Command{cmd})
 	if err != nil {
 		return nil, err
 	}
@@ -61,57 +78,48 @@ RunJobs runs multiple commands on master using Run endpoint
 
 https://docs.saltstack.com/en/latest/ref/netapi/all/salt.netapi.rest_cherrypy.html#salt.netapi.rest_cherrypy.app.Run
 */
-func (c *Client) RunJobs(cmds []Command) ([]map[string]interface{}, error) {
-	items := make([]interface{}, len(cmds))
-	for i, cmd := range cmds {
-		data := make(map[string]interface{})
-		data["client"] = cmd.Client
-		if cmd.Target != "" {
-			data["tgt"] = cmd.Target
+func (c *Client) RunJobs(ctx context.Context, cmds []Command) ([]interface{}, error) {
+	d := make([]runRequest, len(cmds))
+	for i, v := range cmds {
+		j := runRequest{
+			Args:     v.Args,
+			KWArgs:   v.Kwargs,
+			Client:   v.Client,
+			Function: v.Function,
+			Username: c.eauth.Username,
+			Password: c.eauth.Password,
+			Backend:  c.eauth.Backend,
 		}
-		if cmd.TargetType != "" {
-			data["tgt_type"] = cmd.TargetType
-		}
-		if cmd.Function != "" {
-			data["fun"] = cmd.Function
-		}
-		if len(cmd.Args) > 0 {
-			data["arg"] = cmd.Args
-		}
-		if cmd.Kwargs != nil {
-			data["kwarg"] = cmd.Kwargs
+
+		if v.Target != nil {
+			j.Target = v.Target.GetTarget()
+			j.TargetType = v.Target.GetType()
 		}
 
 		// wheel throws following error if full_return is sent as a seperate argument
 		// TypeError: call_func() got multiple values for keyword argument 'full_return'
-		if cmd.Client == WheelClient {
-			if cmd.Kwargs == nil {
-				cmd.Kwargs = make(map[string]interface{})
+		if j.Client == WheelClient && j.FullReturn {
+			if j.KWArgs == nil {
+				j.KWArgs = make(map[string]interface{})
 			}
-
-			cmd.Kwargs["full_return"] = cmd.FullReturn
-		} else {
-			data["full_return"] = cmd.FullReturn
+			j.KWArgs["full_return"] = j.FullReturn
+			j.FullReturn = false
 		}
 
-		data["username"] = c.eauth.Username
-		data["password"] = c.eauth.Password
-		data["eauth"] = c.eauth.Backend
-
-		items[i] = data
+		d[i] = j
 	}
 
-	log.Println("[DEBUG] Sending run request")
-	res, err := c.requestJSON("POST", "run", items)
+	req, err := c.newRequest(ctx, "POST", "run", d)
 	if err != nil {
 		return nil, err
 	}
 
-	results := res["return"].([]interface{})
-	output := make([]map[string]interface{}, len(results))
-	for i, v := range results {
-		output[i] = v.(map[string]interface{})
+	log.Println("[DEBUG] Sending run jobs request")
+	var resp runResponse
+	_, err = c.do(req, &resp)
+	if err != nil {
+		return nil, err
 	}
 
-	return output, nil
+	return resp.Return, nil
 }

@@ -3,10 +3,12 @@ package cherrypy
 import (
 	"archive/tar"
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 )
 
 var (
@@ -24,11 +26,11 @@ var (
 
 // KeyResult contains list of available keys on the master
 type KeyResult struct {
-	Local           []string
-	MinionsRejected []string
-	MinionsDenied   []string
-	MinionsPre      []string
-	Minions         []string
+	Local           []string `json:"local"`
+	MinionsRejected []string `json:"minions_rejected"`
+	MinionsDenied   []string `json:"minions_denied"`
+	MinionsPre      []string `json:"minions_pre"`
+	Minions         []string `json:"minions"`
 }
 
 // MinionKeyPair contains key-pair for a minion
@@ -38,25 +40,46 @@ type MinionKeyPair struct {
 	Private string
 }
 
+type keyListResponse struct {
+	Return KeyResult `json:"return"`
+}
+
+type keyDetailsMinionsKeyPair struct {
+	Minions map[string]string `json:"minions"`
+}
+
+type keyDetailsResponse struct {
+	Return keyDetailsMinionsKeyPair `json:"return"`
+}
+
+type keyGenerateRequest struct {
+	ID       string `json:"mid"`
+	KeySize  int    `json:"keysize,omitempty"`
+	Force    bool   `json:"force"`
+	Username string `json:"username"`
+	Password string `json:"password"`
+	Backend  string `json:"eauth"`
+}
+
 /*
 Keys retrieves list of keys from master
 
 https://docs.saltstack.com/en/latest/ref/netapi/all/salt.netapi.rest_cherrypy.html#salt.netapi.rest_cherrypy.app.Keys.GET
 */
-func (c *Client) Keys() (*KeyResult, error) {
-	res, err := c.requestJSON("GET", "keys", nil)
+func (c *Client) Keys(ctx context.Context) (*KeyResult, error) {
+	req, err := c.newRequest(ctx, "GET", "keys", nil)
 	if err != nil {
 		return nil, err
 	}
 
-	result := res["return"].(map[string]interface{})
-	return &KeyResult{
-		Local:           stringSlice(result["local"].([]interface{})),
-		MinionsRejected: stringSlice(result["minions_rejected"].([]interface{})),
-		MinionsDenied:   stringSlice(result["minions_denied"].([]interface{})),
-		MinionsPre:      stringSlice(result["minions_pre"].([]interface{})),
-		Minions:         stringSlice(result["minions"].([]interface{})),
-	}, nil
+	log.Println("[DEBUG] Sending key list request")
+	var resp keyListResponse
+	_, err = c.do(req, &resp)
+	if err != nil {
+		return nil, err
+	}
+
+	return &resp.Return, nil
 }
 
 /*
@@ -66,19 +89,24 @@ If the minion is not found on the master ErrorMinionKeyNotFound error is returne
 
 https://docs.saltstack.com/en/latest/ref/netapi/all/salt.netapi.rest_cherrypy.html#salt.netapi.rest_cherrypy.app.Keys.GET
 */
-func (c *Client) Key(id string) (string, error) {
-	res, err := c.requestJSON("GET", "keys/"+id, nil)
+func (c *Client) Key(ctx context.Context, id string) (string, error) {
+	req, err := c.newRequest(ctx, "GET", "keys/"+id, nil)
 	if err != nil {
 		return "", err
 	}
 
-	result := res["return"].(map[string]interface{})
-	if len(result) == 0 {
+	log.Println("[DEBUG] Sending key details request")
+	var resp keyDetailsResponse
+	_, err = c.do(req, &resp)
+	if err != nil {
+		return "", err
+	}
+
+	if len(resp.Return.Minions) == 0 {
 		return "", fmt.Errorf("%s: %w", id, ErrorMinionKeyNotFound)
 	}
 
-	dict := result["minions"].(map[string]interface{})
-	return dict[id].(string), nil
+	return resp.Return.Minions[id], nil
 }
 
 /*
@@ -91,16 +119,24 @@ If force argument is true; existing keys will be overwriten and new keys will be
 
 https://docs.saltstack.com/en/latest/ref/netapi/all/salt.netapi.rest_cherrypy.html#salt.netapi.rest_cherrypy.app.Keys.POST
 */
-func (c *Client) GenerateKeyPair(id string, keySize int, force bool) (*MinionKeyPair, error) {
-	data := make(map[string]interface{})
-	data["mid"] = id
-	data["keysize"] = keySize
-	data["force"] = force
-	data["username"] = c.eauth.Username
-	data["password"] = c.eauth.Password
-	data["eauth"] = c.eauth.Backend
+func (c *Client) GenerateKeyPair(ctx context.Context, id string, keySize int, force bool) (*MinionKeyPair, error) {
+	data := keyGenerateRequest{
+		ID:       id,
+		KeySize:  keySize,
+		Force:    force,
+		Username: c.eauth.Username,
+		Password: c.eauth.Password,
+		Backend:  c.eauth.Backend,
+	}
 
-	body, err := c.request("POST", "keys", "", data)
+	req, err := c.newRequest(ctx, "POST", "keys", data)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Println("[DEBUG] Sending generate key request")
+	br := new(bytes.Buffer)
+	_, err = c.do(req, br)
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +145,6 @@ func (c *Client) GenerateKeyPair(id string, keySize int, force bool) (*MinionKey
 		ID: id,
 	}
 
-	br := bytes.NewReader(body)
 	tr := tar.NewReader(br)
 	for {
 		header, err := tr.Next()

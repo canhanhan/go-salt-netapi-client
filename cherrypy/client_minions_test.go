@@ -1,17 +1,19 @@
 package cherrypy
 
 import (
+	"context"
 	"errors"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGetSingleOnlineMinion(t *testing.T) {
-	c, mux, teardown := setup(t)
-	defer teardown()
-	handleJSONRequest(mux, "/minions/minion1", "minions_get_success")
+	tester, c := setup(t)
+	defer tester.Close()
+	tester.Setup(t, "minions_get", "success")
 
-	res, err := c.Minion("minion1")
+	res, err := c.Minion(context.Background(), "minion1")
 
 	assert.NoError(t, err)
 	assert.NotNil(t, res)
@@ -19,11 +21,11 @@ func TestGetSingleOnlineMinion(t *testing.T) {
 }
 
 func TestGetSingleOfflineMinion(t *testing.T) {
-	c, mux, teardown := setup(t)
-	defer teardown()
-	handleJSONRequest(mux, "/minions/minion2", "minions_get_offline")
+	tester, c := setup(t)
+	defer tester.Close()
+	tester.Setup(t, "minions_get", "offline")
 
-	res, err := c.Minion("minion2")
+	res, err := c.Minion(context.Background(), "minion2")
 
 	assert.NoError(t, err)
 	assert.NotNil(t, res)
@@ -31,11 +33,11 @@ func TestGetSingleOfflineMinion(t *testing.T) {
 }
 
 func TestGetSingleMissingMinion(t *testing.T) {
-	c, mux, teardown := setup(t)
-	defer teardown()
-	handleJSONRequest(mux, "/minions/minion3", "minions_get_missing")
+	tester, c := setup(t)
+	defer tester.Close()
+	tester.Setup(t, "minions_get", "missing")
 
-	res, err := c.Minion("minion3")
+	res, err := c.Minion(context.Background(), "minion3")
 	if !errors.Is(err, ErrorMinionNotFound) {
 		t.Fatal(err)
 	}
@@ -45,153 +47,145 @@ func TestGetSingleMissingMinion(t *testing.T) {
 }
 
 func TestSubmitSingleJob(t *testing.T) {
-	c, mux, teardown := setup(t)
-	defer teardown()
-	handleJSONRequest(mux, "/minions", "minions_submit_single")
+	tester, c := setup(t)
+	defer tester.Close()
+	tester.Setup(t, "minions_submit", "single")
 
-	res, err := c.SubmitJob(MinionJob{
-		Target:     "minion1",
-		TargetType: Glob,
-		Function:   "test.ping",
+	res, err := c.SubmitJob(context.Background(), MinionJob{
+		Target:   ExpressionTarget{Expression: "minion1", Type: Glob},
+		Function: "test.ping",
 	})
 
 	assert.NoError(t, err)
 	assert.Contains(t, res.Minions, "minion1")
-	assert.NotEmpty(t, res.JobID)
+	assert.NotEmpty(t, res.ID)
 }
 
 func TestSubmitSingleJobToOfflineMinion(t *testing.T) {
-	c, mux, teardown := setup(t)
-	defer teardown()
-	handleJSONRequest(mux, "/minions", "minions_submit_offline")
+	tester, c := setup(t)
+	defer tester.Close()
+	tester.Setup(t, "minions_submit", "offline")
 
-	res, err := c.SubmitJob(MinionJob{
-		Target:     "minion2",
-		TargetType: Glob,
-		Function:   "test.ping",
+	res, err := c.SubmitJob(context.Background(), MinionJob{
+		Target:   ExpressionTarget{Expression: "minion2", Type: Glob},
+		Function: "test.ping",
 	})
 
 	assert.NoError(t, err)
 	assert.Contains(t, res.Minions, "minion2")
-	assert.NotEmpty(t, res.JobID)
+	assert.NotEmpty(t, res.ID)
 }
 
 func TestSubmitSingleJobToMissingMinion(t *testing.T) {
-	c, mux, teardown := setup(t)
-	defer teardown()
-	handleJSONRequest(mux, "/minions", "minions_submit_missing")
+	tester, c := setup(t)
+	defer tester.Close()
+	tester.Setup(t, "minions_submit", "missing")
 
-	res, err := c.SubmitJob(MinionJob{
-		Target:     "minion3",
-		TargetType: Glob,
-		Function:   "test.ping",
+	res, err := c.SubmitJob(context.Background(), MinionJob{
+		Target:   ExpressionTarget{Expression: "minion3", Type: Glob},
+		Function: "test.ping",
 	})
 
 	assert.NoError(t, err)
-	assert.Nil(t, res)
+	assert.Empty(t, res.ID)
 }
 
 func TestSubmitMultipleJobs(t *testing.T) {
-	c, mux, teardown := setup(t)
-	defer teardown()
-	handleJSONRequest(mux, "/minions", "minions_submit_multiple")
+	tester, c := setup(t)
+	defer tester.Close()
+	tester.Setup(t, "minions_submit", "multiple")
 
-	res, err := c.SubmitJobs([]MinionJob{
+	res, err := c.SubmitJobs(context.Background(), []MinionJob{
 		MinionJob{
-			Target:     "minion1",
-			TargetType: Glob,
-			Function:   "test.ping",
+			Target:   ExpressionTarget{Expression: "minion1", Type: Glob},
+			Function: "test.ping",
 		},
 		MinionJob{
-			Target:     "minion1",
-			TargetType: Glob,
-			Function:   "test.ping",
+			Target:   ExpressionTarget{Expression: "minion1", Type: Glob},
+			Function: "test.ping",
 		},
 	})
 
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(res))
 	assert.Contains(t, res[0].Minions, "minion1")
-	assert.NotEmpty(t, res[0].JobID)
+	assert.NotEmpty(t, res[0].ID)
 	assert.Contains(t, res[1].Minions, "minion1")
-	assert.NotEmpty(t, res[1].JobID)
+	assert.NotEmpty(t, res[1].ID)
 }
 
 func TestSubmitMultipleJobToOfflineMinion(t *testing.T) {
-	c, mux, teardown := setup(t)
-	defer teardown()
-	handleJSONRequest(mux, "/minions", "minions_submit_multiple_offline")
+	tester, c := setup(t)
+	defer tester.Close()
+	tester.Setup(t, "minions_submit", "multiple_offline")
 
-	res, err := c.SubmitJobs([]MinionJob{
+	res, err := c.SubmitJobs(context.Background(), []MinionJob{
 		MinionJob{
-			Target:     "minion2",
-			TargetType: Glob,
-			Function:   "test.ping",
+			Target:   ExpressionTarget{Expression: "minion2", Type: Glob},
+			Function: "test.ping",
 		},
 		MinionJob{
-			Target:     "minion2",
-			TargetType: Glob,
-			Function:   "test.ping",
+			Target:   ExpressionTarget{Expression: "minion2", Type: Glob},
+			Function: "test.ping",
 		},
 	})
 
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(res))
 	assert.Contains(t, res[0].Minions, "minion2")
-	assert.NotEmpty(t, res[0].JobID)
+	assert.NotEmpty(t, res[0].ID)
 	assert.Contains(t, res[1].Minions, "minion2")
-	assert.NotEmpty(t, res[1].JobID)
+	assert.NotEmpty(t, res[1].ID)
 }
 
 func TestSubmitMuiltipleJobsToMissingMinion(t *testing.T) {
-	c, mux, teardown := setup(t)
-	defer teardown()
-	handleJSONRequest(mux, "/minions", "minions_submit_multiple_missing")
+	tester, c := setup(t)
+	defer tester.Close()
+	tester.Setup(t, "minions_submit", "multiple_missing")
 
-	res, err := c.SubmitJobs([]MinionJob{
+	res, err := c.SubmitJobs(context.Background(), []MinionJob{
 		MinionJob{
-			Target:     "minion3",
-			TargetType: Glob,
-			Function:   "test.ping",
+			Target:   ExpressionTarget{Expression: "minion3", Type: Glob},
+			Function: "test.ping",
 		},
 		MinionJob{
-			Target:     "minion3",
-			TargetType: Glob,
-			Function:   "test.ping",
-		},
-	})
-
-	assert.NoError(t, err)
-	assert.Empty(t, res)
-}
-
-func TestSubmitMuiltipleJobsToMixedStatusMinions(t *testing.T) {
-	c, mux, teardown := setup(t)
-	defer teardown()
-	handleJSONRequest(mux, "/minions", "minions_submit_multiple_mixed")
-
-	res, err := c.SubmitJobs([]MinionJob{
-		MinionJob{
-			Target:     "minion1",
-			TargetType: Glob,
-			Function:   "test.ping",
-		},
-		MinionJob{
-			Target:     "minion2",
-			TargetType: Glob,
-			Function:   "test.ping",
-		},
-		MinionJob{
-			Target:     "minion3",
-			TargetType: Glob,
-			Function:   "test.ping",
+			Target:   ExpressionTarget{Expression: "minion3", Type: Glob},
+			Function: "test.ping",
 		},
 	})
 
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(res))
+	assert.Empty(t, res[0].ID)
+	assert.Empty(t, res[1].ID)
+}
+
+func TestSubmitMuiltipleJobsToMixedStatusMinions(t *testing.T) {
+	tester, c := setup(t)
+	defer tester.Close()
+	tester.Setup(t, "minions_submit", "multiple_mixed")
+
+	res, err := c.SubmitJobs(context.Background(), []MinionJob{
+		MinionJob{
+			Target:   ExpressionTarget{Expression: "minion1", Type: Glob},
+			Function: "test.ping",
+		},
+		MinionJob{
+			Target:   ExpressionTarget{Expression: "minion2", Type: Glob},
+			Function: "test.ping",
+		},
+		MinionJob{
+			Target:   ExpressionTarget{Expression: "minion3", Type: Glob},
+			Function: "test.ping",
+		},
+	})
+
+	assert.NoError(t, err)
+	assert.Equal(t, 3, len(res))
 	assert.Contains(t, res[0].Minions, "minion1")
-	assert.NotEmpty(t, res[0].JobID)
+	assert.NotEmpty(t, res[0].ID)
 	assert.Contains(t, res[1].Minions, "minion2")
-	assert.NotEmpty(t, res[1].JobID)
+	assert.NotEmpty(t, res[1].ID)
+	assert.Empty(t, res[2].Minions)
+	assert.Empty(t, res[2].ID)
 }
