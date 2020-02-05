@@ -18,7 +18,7 @@ func TestRunLocalCommand(t *testing.T) {
 		Function: "test.ping",
 	}
 
-	res, err := c.RunJob(context.Background(), cmd)
+	res, err := c.RunCommand(context.Background(), cmd)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, res)
@@ -42,7 +42,7 @@ func TestRunLocalCommands(t *testing.T) {
 		},
 	}
 
-	res, err := c.RunJobs(context.Background(), cmds)
+	res, err := c.RunCommands(context.Background(), cmds)
 
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(res))
@@ -58,7 +58,7 @@ func TestRunWheelCommand(t *testing.T) {
 		Function: "minions.connected",
 	}
 
-	res, err := c.RunJob(context.Background(), cmd)
+	res, err := c.RunCommand(context.Background(), cmd)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, res)

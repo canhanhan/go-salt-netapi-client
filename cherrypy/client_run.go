@@ -41,12 +41,12 @@ type runResponse struct {
 }
 
 /*
-RunJob runs a command on master using Run endpoint
+RunCommand runs a command on master using Run endpoint
 
 https://docs.saltstack.com/en/latest/ref/netapi/all/salt.netapi.rest_cherrypy.html#salt.netapi.rest_cherrypy.app.Run
 */
-func (c *Client) RunJob(ctx context.Context, cmd Command) (interface{}, error) {
-	res, err := c.RunJobs(ctx, []Command{cmd})
+func (c *Client) RunCommand(ctx context.Context, cmd Command) (interface{}, error) {
+	res, err := c.RunCommands(ctx, []Command{cmd})
 	if err != nil {
 		return nil, err
 	}
@@ -59,11 +59,11 @@ func (c *Client) RunJob(ctx context.Context, cmd Command) (interface{}, error) {
 }
 
 /*
-RunJobs runs multiple commands on master using Run endpoint
+RunCommands runs multiple commands on master using Run endpoint
 
 https://docs.saltstack.com/en/latest/ref/netapi/all/salt.netapi.rest_cherrypy.html#salt.netapi.rest_cherrypy.app.Run
 */
-func (c *Client) RunJobs(ctx context.Context, cmds []Command) ([]interface{}, error) {
+func (c *Client) RunCommands(ctx context.Context, cmds []Command) ([]interface{}, error) {
 	r := make([]map[string]interface{}, len(cmds))
 	for i, v := range cmds {
 		d := make(map[string]interface{})
