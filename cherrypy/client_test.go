@@ -6,8 +6,8 @@ import (
 	"os"
 	"testing"
 
-	apiTester "github.com/finarfin/go-apiclient-tester/tester"
 	"github.com/finarfin/go-apiclient-tester/postman"
+	apiTester "github.com/finarfin/go-apiclient-tester/tester"
 )
 
 const (
