@@ -49,32 +49,40 @@ var targetTypes = map[string]TargetType{
 	"ipcidr":      IPCIDR,
 }
 
+// Target is an interface used in Command and MinionJob to target minions
 type Target interface {
 	GetTarget() interface{}
 	GetType() TargetType
 }
 
+// ListTarget is for list target type of SaltStack
 type ListTarget struct {
+	// Targets contain list of minion ids
 	Targets []string
 }
 
+// GetTarget returns targets
 func (t ListTarget) GetTarget() interface{} {
 	return t.Targets
 }
 
+// GetType returns target type
 func (t ListTarget) GetType() TargetType {
 	return List
 }
 
+// ExpressionTarget is used for almost all target types of SaltStack
 type ExpressionTarget struct {
 	Expression string
 	Type       TargetType
 }
 
+// GetTarget returns targets
 func (t ExpressionTarget) GetTarget() interface{} {
 	return t.Expression
 }
 
+// GetType returns target type
 func (t ExpressionTarget) GetType() TargetType {
 	return t.Type
 }
